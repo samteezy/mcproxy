@@ -28,6 +28,18 @@ export interface UpstreamServerConfig {
 }
 
 /**
+ * Policy settings for compression (can be global default or per-tool)
+ */
+export interface CompressionPolicy {
+  /** Whether compression is enabled */
+  enabled?: boolean;
+  /** Token threshold to trigger compression */
+  tokenThreshold?: number;
+  /** Maximum tokens for compressed output */
+  maxOutputTokens?: number;
+}
+
+/**
  * Configuration for the compression model
  */
 export interface CompressionConfig {
@@ -37,9 +49,18 @@ export interface CompressionConfig {
   apiKey?: string;
   /** Model identifier */
   model: string;
-  /** Token threshold to trigger compression */
+  /** Default policy applied to all tools */
+  defaultPolicy: CompressionPolicy & { enabled: boolean; tokenThreshold: number };
+  /** Per-tool policy overrides (key is namespaced tool name, e.g. "upstream__tool") */
+  toolPolicies?: Record<string, CompressionPolicy>;
+}
+
+/**
+ * Resolved policy for a specific tool (all fields guaranteed)
+ */
+export interface ResolvedCompressionPolicy {
+  enabled: boolean;
   tokenThreshold: number;
-  /** Maximum tokens for compressed output */
   maxOutputTokens?: number;
 }
 

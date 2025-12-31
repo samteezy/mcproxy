@@ -141,8 +141,8 @@ export class DownstreamServer {
 
       const result = await this.router.callTool(name, args || {});
 
-      // Compress the result if needed
-      const compressedResult = await this.compressor.compressToolResult(result);
+      // Compress the result using tool-specific policy
+      const compressedResult = await this.compressor.compressToolResult(result, name);
 
       return compressedResult;
     });

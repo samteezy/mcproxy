@@ -18,6 +18,7 @@ Upstream MCP Server(s)
 
 - **Transparent proxy** - Works with any MCP client and server
 - **Smart compression** - Auto-detects content type (JSON, code, text) and applies appropriate compression strategy
+- **Per-tool policies** - Configure different compression thresholds for different tools
 - **Token-based threshold** - Only compresses responses exceeding configurable token count
 - **Multi-server aggregation** - Connect to multiple upstream MCP servers simultaneously
 - **All transports** - Supports stdio, SSE, and Streamable HTTP for both upstream and downstream
@@ -55,8 +56,11 @@ node dist/cli.js --init
   "compression": {
     "baseUrl": "http://localhost:8080/v1",
     "model": "your-model",
-    "tokenThreshold": 1000,
-    "maxOutputTokens": 500
+    "defaultPolicy": {
+      "enabled": true,
+      "tokenThreshold": 1000,
+      "maxOutputTokens": 500
+    }
   }
 }
 ```
@@ -95,8 +99,44 @@ node dist/cli.js
 | `baseUrl` | `string` | OpenAI-compatible API base URL |
 | `apiKey` | `string` | API key (optional for local models) |
 | `model` | `string` | Model identifier |
-| `tokenThreshold` | `number` | Minimum tokens to trigger compression |
+| `defaultPolicy` | `object` | Default compression policy for all tools |
+| `toolPolicies` | `object` | Per-tool policy overrides (keyed by namespaced tool name) |
+
+#### Default Policy
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `enabled` | `boolean` | Enable/disable compression globally (default: true) |
+| `tokenThreshold` | `number` | Minimum tokens to trigger compression (default: 1000) |
 | `maxOutputTokens` | `number` | Maximum tokens in compressed output |
+
+#### Per-Tool Policies
+
+You can override the default policy for specific tools:
+
+```json
+{
+  "compression": {
+    "baseUrl": "http://localhost:8080/v1",
+    "model": "your-model",
+    "defaultPolicy": {
+      "enabled": true,
+      "tokenThreshold": 1000
+    },
+    "toolPolicies": {
+      "my-server__read_file": {
+        "enabled": false
+      },
+      "my-server__search": {
+        "tokenThreshold": 200,
+        "maxOutputTokens": 100
+      }
+    }
+  }
+}
+```
+
+Each tool policy can override any of: `enabled`, `tokenThreshold`, `maxOutputTokens`
 
 ### Cache
 

@@ -26,12 +26,27 @@ export const upstreamServerSchema = z
     }
   );
 
+export const compressionPolicySchema = z.object({
+  enabled: z.boolean().optional(),
+  tokenThreshold: z.number().int().positive().optional(),
+  maxOutputTokens: z.number().int().positive().optional(),
+});
+
+export const defaultPolicySchema = z.object({
+  enabled: z.boolean().default(true),
+  tokenThreshold: z.number().int().positive().default(1000),
+  maxOutputTokens: z.number().int().positive().optional(),
+});
+
 export const compressionSchema = z.object({
   baseUrl: z.string().url(),
   apiKey: z.string().optional(),
   model: z.string().min(1),
-  tokenThreshold: z.number().int().positive().default(1000),
-  maxOutputTokens: z.number().int().positive().optional(),
+  defaultPolicy: defaultPolicySchema.default({
+    enabled: true,
+    tokenThreshold: 1000,
+  }),
+  toolPolicies: z.record(compressionPolicySchema).optional(),
 });
 
 export const downstreamSchema = z

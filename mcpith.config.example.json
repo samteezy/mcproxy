@@ -21,10 +21,22 @@
     }
   ],
   "compression": {
-    "baseUrl": "http://10.10.3.197:8080/v1",
-    "model": "LFM2-1.2B",
-    "tokenThreshold": 1000,
-    "maxOutputTokens": 500
+    "baseUrl": "http://localhost:8080/v1",
+    "model": "your-model",
+    "defaultPolicy": {
+      "enabled": true,
+      "tokenThreshold": 1000,
+      "maxOutputTokens": 500
+    },
+    "toolPolicies": {
+      "filesystem__read_file": {
+        "enabled": false
+      },
+      "everything__fetch": {
+        "tokenThreshold": 200,
+        "maxOutputTokens": 100
+      }
+    }
   },
   "cache": {
     "enabled": true,

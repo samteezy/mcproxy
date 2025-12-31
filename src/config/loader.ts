@@ -57,7 +57,17 @@ export function generateExampleConfig(): MCPithConfig {
     compression: {
       baseUrl: "http://localhost:8080/v1",
       model: "local-model",
-      tokenThreshold: 1000,
+      defaultPolicy: {
+        enabled: true,
+        tokenThreshold: 1000,
+        maxOutputTokens: 500,
+      },
+      toolPolicies: {
+        // Example: disable compression for a specific tool
+        // "example-server__some-tool": { enabled: false },
+        // Example: more aggressive compression for another tool
+        // "example-server__heavy-tool": { tokenThreshold: 200, maxOutputTokens: 100 },
+      },
     },
     cache: {
       enabled: true,

@@ -9,6 +9,7 @@ import type {
 import type {
   CompressionConfig,
   CompressionResult,
+  ResolvedCompressionPolicy,
 } from "../types.js";
 import { detectStrategy, getCompressionPrompt } from "./strategy.js";
 import { getLogger } from "../logger.js";
@@ -27,6 +28,38 @@ export class Compressor {
   }
 
   /**
+   * Resolve the compression policy for a specific tool
+   * Tool-specific settings override defaults
+   */
+  resolvePolicy(toolName?: string): ResolvedCompressionPolicy {
+    const defaultPolicy = this.config.defaultPolicy;
+
+    if (!toolName || !this.config.toolPolicies) {
+      return {
+        enabled: defaultPolicy.enabled,
+        tokenThreshold: defaultPolicy.tokenThreshold,
+        maxOutputTokens: defaultPolicy.maxOutputTokens,
+      };
+    }
+
+    const toolPolicy = this.config.toolPolicies[toolName];
+    if (!toolPolicy) {
+      return {
+        enabled: defaultPolicy.enabled,
+        tokenThreshold: defaultPolicy.tokenThreshold,
+        maxOutputTokens: defaultPolicy.maxOutputTokens,
+      };
+    }
+
+    // Merge: tool policy overrides default
+    return {
+      enabled: toolPolicy.enabled ?? defaultPolicy.enabled,
+      tokenThreshold: toolPolicy.tokenThreshold ?? defaultPolicy.tokenThreshold,
+      maxOutputTokens: toolPolicy.maxOutputTokens ?? defaultPolicy.maxOutputTokens,
+    };
+  }
+
+  /**
    * Count tokens in a string
    */
   countTokens(text: string): number {
@@ -34,14 +67,17 @@ export class Compressor {
   }
 
   /**
-   * Compress text if it exceeds the token threshold
+   * Compress text using the given policy
    */
-  async compress(content: string): Promise<CompressionResult> {
+  async compress(
+    content: string,
+    policy: ResolvedCompressionPolicy
+  ): Promise<CompressionResult> {
     const logger = getLogger();
     const originalTokens = this.countTokens(content);
 
-    // Don't compress if under threshold
-    if (originalTokens <= this.config.tokenThreshold) {
+    // Don't compress if disabled or under threshold
+    if (!policy.enabled || originalTokens <= policy.tokenThreshold) {
       return {
         original: content,
         compressed: content,
@@ -54,20 +90,20 @@ export class Compressor {
 
     const strategy = detectStrategy(content);
     logger.debug(
-      `Compressing ${originalTokens} tokens using '${strategy}' strategy`
+      `Compressing ${originalTokens} tokens using '${strategy}' strategy (threshold: ${policy.tokenThreshold})`
     );
 
     try {
       const prompt = getCompressionPrompt(
         strategy,
         content,
-        this.config.maxOutputTokens
+        policy.maxOutputTokens
       );
 
       const { text } = await generateText({
         model: this.provider(this.config.model),
         prompt,
-        maxTokens: this.config.maxOutputTokens,
+        maxTokens: policy.maxOutputTokens,
       });
 
       const compressedTokens = this.countTokens(text);
@@ -99,10 +135,20 @@ export class Compressor {
   }
 
   /**
-   * Compress a tool result
+   * Compress a tool result using the policy for the given tool
    */
-  async compressToolResult(result: CallToolResult): Promise<CallToolResult> {
+  async compressToolResult(
+    result: CallToolResult,
+    toolName?: string
+  ): Promise<CallToolResult> {
     const logger = getLogger();
+    const policy = this.resolvePolicy(toolName);
+
+    // Check if compression is enabled for this tool
+    if (!policy.enabled) {
+      logger.debug(`Compression disabled for tool: ${toolName || "unknown"}`);
+      return result;
+    }
 
     // Extract text content
     const textContents = result.content.filter(
@@ -117,14 +163,16 @@ export class Compressor {
     const combinedText = textContents.map((c) => c.text).join("\n");
     const tokenCount = this.countTokens(combinedText);
 
-    if (tokenCount <= this.config.tokenThreshold) {
+    if (tokenCount <= policy.tokenThreshold) {
       return result;
     }
 
-    logger.debug(`Tool result has ${tokenCount} tokens, compressing...`);
+    logger.debug(
+      `Tool '${toolName || "unknown"}' result has ${tokenCount} tokens (threshold: ${policy.tokenThreshold}), compressing...`
+    );
 
     // Compress the combined text
-    const compressed = await this.compress(combinedText);
+    const compressed = await this.compress(combinedText, policy);
 
     if (!compressed.wasCompressed) {
       return result;
@@ -158,24 +206,29 @@ export class Compressor {
   }
 
   /**
-   * Compress a resource read result
+   * Compress a resource read result (uses default policy)
    */
   async compressResourceResult(
     result: ReadResourceResult
   ): Promise<ReadResourceResult> {
     const logger = getLogger();
+    const policy = this.resolvePolicy(); // Use default policy for resources
+
+    if (!policy.enabled) {
+      return result;
+    }
 
     const newContents = await Promise.all(
       result.contents.map(async (content) => {
         if ("text" in content && typeof content.text === "string") {
           const tokenCount = this.countTokens(content.text);
 
-          if (tokenCount <= this.config.tokenThreshold) {
+          if (tokenCount <= policy.tokenThreshold) {
             return content;
           }
 
           logger.debug(`Resource content has ${tokenCount} tokens, compressing...`);
-          const compressed = await this.compress(content.text);
+          const compressed = await this.compress(content.text, policy);
 
           if (!compressed.wasCompressed) {
             return content;

@@ -56,8 +56,8 @@ Three strategies auto-selected based on content:
 
 - Node.js 20+, TypeScript 5.x
 - `@modelcontextprotocol/sdk` - MCP implementation
-- `@ai` - LLM API client (Vercel)
-- `ai-tokenizer` - Token counting
+- `ai` / `@ai-sdk/openai-compatible` - LLM API client (Vercel)
+- `gpt-tokenizer` - Token counting
 - `winston` - Logging
 - `vitest` - Testing
 - `tsup` - Build
@@ -66,8 +66,16 @@ Three strategies auto-selected based on content:
 - To test the LLM inference, there is an OpenAI-compatible endpoint at http://10.10.3.197:8080/v1/ and you can call the model "LFM2-1.2B".
 - Do not set up the MCP proxy with yourself (Claude Code). Either use a separate tool locally to test the MCP, or give the user setup and testing instructions.
 
+## Future Enhancements
+
+The following features are planned for future implementation:
+
+1. **Tool Hiding** - Ability to disable/hide certain tools entirely from being exposed to clients. Many MCPs include extra tools that users may not want to expose.
+
+2. **Tool Renaming/Rewriting** - Ability for users to rewrite tool names and/or descriptions. This allows customizing how tools appear to clients without modifying upstream servers.
+
 ## References
 - MCPO: https://github.com/open-webui/mcpo/tree/main
 - MCP SDK: https://github.com/modelcontextprotocol/typescript-sdk
 - Vercel SDK: https://ai-sdk.dev/docs/getting-started/nodejs
-- ai-tokenizer: https://www.npmjs.com/package/ai-tokenizer
+- gpt-tokenizer: https://www.npmjs.com/package/gpt-tokenizer
