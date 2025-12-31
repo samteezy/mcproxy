@@ -54,6 +54,9 @@ function isCodeLike(content: string): boolean {
 
 /**
  * Get the compression prompt for a given strategy
+ *
+ * Structure: Content first (in XML tags), instructions last.
+ * This leverages recency bias - instructions are fresh when generating.
  */
 export function getCompressionPrompt(
   strategy: CompressionStrategy,
@@ -62,43 +65,55 @@ export function getCompressionPrompt(
   goal?: string
 ): string {
   const tokenLimit = maxTokens
-    ? `Keep the output under ${maxTokens} tokens.`
+    ? `Keep your response under ${maxTokens} tokens.`
     : "Be as concise as possible.";
 
-  const goalContext = goal
-    ? `\n\nThe caller's goal: "${goal}"\nFocus on preserving information most relevant to this purpose.\n`
+  const goalInstruction = goal
+    ? `\n\nIMPORTANT - The caller's goal: "${goal}"\nPrioritize information relevant to this goal. Omit content that doesn't serve this purpose.`
     : "";
 
   switch (strategy) {
     case "json":
-      return `You are a JSON compression assistant.${goalContext}Compress the following JSON data while preserving its structure and all important values. Remove redundant whitespace, shorten key names if possible while keeping them understandable, and summarize repeated patterns. ${tokenLimit}
-
-JSON to compress:
+      return `<document type="json">
 ${content}
+</document>
 
-Respond with only the compressed JSON, no explanations.`;
+<task>
+Compress the JSON above while preserving structure and important values. Remove redundant whitespace, shorten keys if possible, and summarize repeated patterns.${goalInstruction}
+
+${tokenLimit}
+Output only the compressed JSON, no explanations.
+</task>`;
 
     case "code":
-      return `You are a code summarization assistant.${goalContext}Summarize the following code while preserving:
-- Function/class signatures and their parameters
+      return `<document type="code">
+${content}
+</document>
+
+<task>
+Summarize the code above while preserving:
+- Function/class signatures and parameters
 - Key logic and algorithms
 - Important comments
 - Return types and values
 
-Remove implementation details that aren't critical to understanding what the code does. ${tokenLimit}
+Remove non-critical implementation details.${goalInstruction}
 
-Code to summarize:
-${content}
-
-Respond with the summarized code or pseudocode, no explanations.`;
+${tokenLimit}
+Output only the summarized code or pseudocode, no explanations.
+</task>`;
 
     case "default":
     default:
-      return `You are a text compression assistant.${goalContext}Compress the following text while preserving all important information, facts, and data. Remove redundancy and verbose language. ${tokenLimit}
-
-Text to compress:
+      return `<document>
 ${content}
+</document>
 
-Respond with only the compressed text, no explanations.`;
+<task>
+Compress the document above while preserving all important information, facts, and data. Remove redundancy and verbose language.${goalInstruction}
+
+${tokenLimit}
+Output only the compressed text, no explanations.
+</task>`;
   }
 }
