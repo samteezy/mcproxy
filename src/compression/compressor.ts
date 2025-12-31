@@ -71,7 +71,8 @@ export class Compressor {
    */
   async compress(
     content: string,
-    policy: ResolvedCompressionPolicy
+    policy: ResolvedCompressionPolicy,
+    goal?: string
   ): Promise<CompressionResult> {
     const logger = getLogger();
     const originalTokens = this.countTokens(content);
@@ -90,14 +91,15 @@ export class Compressor {
 
     const strategy = detectStrategy(content);
     logger.debug(
-      `Compressing ${originalTokens} tokens using '${strategy}' strategy (threshold: ${policy.tokenThreshold})`
+      `Compressing ${originalTokens} tokens using '${strategy}' strategy (threshold: ${policy.tokenThreshold})${goal ? ` with goal: "${goal}"` : ""}`
     );
 
     try {
       const prompt = getCompressionPrompt(
         strategy,
         content,
-        policy.maxOutputTokens
+        policy.maxOutputTokens,
+        goal
       );
 
       const { text } = await generateText({
@@ -139,7 +141,8 @@ export class Compressor {
    */
   async compressToolResult(
     result: CallToolResult,
-    toolName?: string
+    toolName?: string,
+    goal?: string
   ): Promise<CallToolResult> {
     const logger = getLogger();
     const policy = this.resolvePolicy(toolName);
@@ -171,8 +174,8 @@ export class Compressor {
       `Tool '${toolName || "unknown"}' result has ${tokenCount} tokens (threshold: ${policy.tokenThreshold}), compressing...`
     );
 
-    // Compress the combined text
-    const compressed = await this.compress(combinedText, policy);
+    // Compress the combined text with goal context
+    const compressed = await this.compress(combinedText, policy, goal);
 
     if (!compressed.wasCompressed) {
       return result;

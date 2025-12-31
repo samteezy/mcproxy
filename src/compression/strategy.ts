@@ -58,15 +58,20 @@ function isCodeLike(content: string): boolean {
 export function getCompressionPrompt(
   strategy: CompressionStrategy,
   content: string,
-  maxTokens?: number
+  maxTokens?: number,
+  goal?: string
 ): string {
   const tokenLimit = maxTokens
     ? `Keep the output under ${maxTokens} tokens.`
     : "Be as concise as possible.";
 
+  const goalContext = goal
+    ? `\n\nThe caller's goal: "${goal}"\nFocus on preserving information most relevant to this purpose.\n`
+    : "";
+
   switch (strategy) {
     case "json":
-      return `You are a JSON compression assistant. Compress the following JSON data while preserving its structure and all important values. Remove redundant whitespace, shorten key names if possible while keeping them understandable, and summarize repeated patterns. ${tokenLimit}
+      return `You are a JSON compression assistant.${goalContext}Compress the following JSON data while preserving its structure and all important values. Remove redundant whitespace, shorten key names if possible while keeping them understandable, and summarize repeated patterns. ${tokenLimit}
 
 JSON to compress:
 ${content}
@@ -74,7 +79,7 @@ ${content}
 Respond with only the compressed JSON, no explanations.`;
 
     case "code":
-      return `You are a code summarization assistant. Summarize the following code while preserving:
+      return `You are a code summarization assistant.${goalContext}Summarize the following code while preserving:
 - Function/class signatures and their parameters
 - Key logic and algorithms
 - Important comments
@@ -89,7 +94,7 @@ Respond with the summarized code or pseudocode, no explanations.`;
 
     case "default":
     default:
-      return `You are a text compression assistant. Compress the following text while preserving all important information, facts, and data. Remove redundancy and verbose language. ${tokenLimit}
+      return `You are a text compression assistant.${goalContext}Compress the following text while preserving all important information, facts, and data. Remove redundancy and verbose language. ${tokenLimit}
 
 Text to compress:
 ${content}

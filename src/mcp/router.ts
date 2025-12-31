@@ -17,25 +17,41 @@ export class Router {
   }
 
   /**
+   * Result from callTool including extracted goal
+   */
+  public static readonly GOAL_FIELD = "_mcpith_goal";
+
+  /**
    * Route a tool call to the correct upstream
    */
   async callTool(
     namespacedName: string,
     args: Record<string, unknown>
-  ): Promise<CallToolResult> {
+  ): Promise<{ result: CallToolResult; goal?: string }> {
     const logger = getLogger();
+
+    // Extract goal before forwarding (strip from args)
+    const goal =
+      typeof args[Router.GOAL_FIELD] === "string"
+        ? (args[Router.GOAL_FIELD] as string)
+        : undefined;
+    const forwardArgs = { ...args };
+    delete forwardArgs[Router.GOAL_FIELD];
 
     // Check if tool is hidden (reject even if it exists)
     if (this.aggregator.isToolHidden(namespacedName)) {
       logger.warn(`Rejected call to hidden tool: ${namespacedName}`);
       return {
-        content: [
-          {
-            type: "text",
-            text: `Error: Tool '${namespacedName}' not found`,
-          },
-        ],
-        isError: true,
+        result: {
+          content: [
+            {
+              type: "text",
+              text: `Error: Tool '${namespacedName}' not found`,
+            },
+          ],
+          isError: true,
+        },
+        goal,
       };
     }
 
@@ -44,13 +60,16 @@ export class Router {
     if (!routing) {
       logger.error(`Tool not found: ${namespacedName}`);
       return {
-        content: [
-          {
-            type: "text",
-            text: `Error: Tool '${namespacedName}' not found`,
-          },
-        ],
-        isError: true,
+        result: {
+          content: [
+            {
+              type: "text",
+              text: `Error: Tool '${namespacedName}' not found`,
+            },
+          ],
+          isError: true,
+        },
+        goal,
       };
     }
 
@@ -59,18 +78,26 @@ export class Router {
       `Routing tool call '${namespacedName}' to upstream '${client.id}' as '${originalName}'`
     );
 
+    if (goal) {
+      logger.debug(`Goal provided: "${goal}"`);
+    }
+
     try {
-      return await client.callTool(originalName, args);
+      const result = await client.callTool(originalName, forwardArgs);
+      return { result, goal };
     } catch (error) {
       logger.error(`Error calling tool '${originalName}' on '${client.id}':`, error);
       return {
-        content: [
-          {
-            type: "text",
-            text: `Error calling tool: ${error instanceof Error ? error.message : String(error)}`,
-          },
-        ],
-        isError: true,
+        result: {
+          content: [
+            {
+              type: "text",
+              text: `Error calling tool: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        },
+        goal,
       };
     }
   }

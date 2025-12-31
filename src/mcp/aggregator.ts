@@ -5,12 +5,14 @@ import type {
   AggregatedResource,
   AggregatedPrompt,
   ToolsConfig,
+  CompressionConfig,
 } from "../types.js";
 import { matchesAnyGlob } from "../utils/index.js";
 import { getLogger } from "../logger.js";
 
 export interface AggregatorOptions {
   toolsConfig?: ToolsConfig;
+  compressionConfig?: CompressionConfig;
 }
 
 /**
@@ -20,6 +22,7 @@ export interface AggregatorOptions {
 export class Aggregator {
   private clients: Map<string, UpstreamClient> = new Map();
   private hiddenPatterns: string[];
+  private compressionConfig?: CompressionConfig;
 
   // Caches for aggregated items
   private toolsCache: AggregatedTool[] = [];
@@ -29,6 +32,7 @@ export class Aggregator {
 
   constructor(options: AggregatorOptions = {}) {
     this.hiddenPatterns = options.toolsConfig?.hidden || [];
+    this.compressionConfig = options.compressionConfig;
   }
 
   /**
@@ -133,7 +137,7 @@ export class Aggregator {
 
     const logger = getLogger();
 
-    // Filter out hidden tools
+    // Filter out hidden tools and inject goal field if enabled
     return this.toolsCache
       .filter((t) => {
         const hidden = this.isToolHidden(t.name);
@@ -142,11 +146,58 @@ export class Aggregator {
         }
         return !hidden;
       })
-      .map((t) => ({
-        name: t.name,
-        description: t.description,
-        inputSchema: t.inputSchema,
-      }));
+      .map((t) => this.injectGoalField(t));
+  }
+
+  /**
+   * Check if goal-aware compression is enabled for a specific tool
+   */
+  private isGoalAwareEnabled(toolName: string): boolean {
+    // Check per-tool override first
+    const toolPolicy = this.compressionConfig?.toolPolicies?.[toolName];
+    if (toolPolicy?.goalAware !== undefined) {
+      return toolPolicy.goalAware;
+    }
+    // Fall back to global setting (default: true)
+    return this.compressionConfig?.goalAware ?? true;
+  }
+
+  /**
+   * Inject _mcpith_goal field into tool schema if goal-aware is enabled
+   */
+  private injectGoalField(tool: AggregatedTool): Tool {
+    if (!this.isGoalAwareEnabled(tool.name)) {
+      return {
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+      };
+    }
+
+    // Append instruction to description
+    const goalInstruction =
+      "Provide a brief goal in '_mcpith_goal' to improve response relevance.";
+    const description = tool.description
+      ? `${tool.description} ${goalInstruction}`
+      : goalInstruction;
+
+    // Add _mcpith_goal to inputSchema.properties
+    const existingSchema = tool.inputSchema;
+    const existingProperties = existingSchema.properties || {};
+
+    const inputSchema = {
+      ...existingSchema,
+      properties: {
+        ...existingProperties,
+        _mcpith_goal: {
+          type: "string" as const,
+          description:
+            "Why you need this data and what information is most important",
+        },
+      },
+    };
+
+    return { name: tool.name, description, inputSchema };
   }
 
   /**

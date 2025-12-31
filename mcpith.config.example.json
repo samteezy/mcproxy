@@ -12,12 +12,12 @@
       "enabled": true
     },
     {
-      "id": "everything",
-      "name": "Everything Server (Demo)",
-      "transport": "stdio",
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-everything"],
-      "enabled": true
+        "id": "fetch",
+        "name": "Fetch",
+        "transport": "stdio",
+        "command": "uvx",
+        "args": ["mcp-server-fetch"],
+        "enabled": true
     }
   ],
   "compression": {

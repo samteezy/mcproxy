@@ -63,8 +63,47 @@ Three strategies auto-selected based on content:
 - `tsup` - Build
 
 ## Testing
-- To test the LLM inference, there is an OpenAI-compatible endpoint at http://10.10.3.197:8080/v1/ and you can call the model "LFM2-1.2B".
-- Do not set up the MCP proxy with yourself (Claude Code). Either use a separate tool locally to test the MCP, or give the user setup and testing instructions.
+
+### LLM Inference Endpoint
+- OpenAI-compatible endpoint at http://10.10.3.197:8080/v1/ with model "LFM2-1.2B"
+- Do not set up the MCP proxy with yourself (Claude Code). Use curl or a separate tool to test.
+
+### Testing with curl (Streamable HTTP transport)
+
+The Streamable HTTP transport requires specific headers. Always include:
+- `Content-Type: application/json`
+- `Accept: application/json, text/event-stream`
+
+**List tools:**
+```bash
+curl -s -X POST http://127.0.0.1:3000/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq
+```
+
+**Call a tool (with goal-aware compression):**
+```bash
+curl -s -X POST http://127.0.0.1:3000/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"fetch__fetch","arguments":{"url":"https://example.com","max_length":50000,"_mcpith_goal":"Finding specific information about X"}}}' | jq
+```
+
+**Test with large content (llama-server README):**
+```bash
+curl -s -X POST http://127.0.0.1:3000/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"fetch__fetch","arguments":{"url":"https://raw.githubusercontent.com/ggml-org/llama.cpp/refs/heads/master/tools/server/README.md","max_length":50000,"_mcpith_goal":"Finding the API endpoints for chat completions"}}}' | jq
+```
+
+### Goal-Aware Compression
+
+The `_mcpith_goal` field is automatically injected into all tool schemas when `goalAware` is enabled (default: true). When provided:
+- The goal is stripped before forwarding to upstream MCP servers
+- The goal is included in the compression prompt to focus on relevant information
+- Example: 14,246 tokens → 283 tokens (98% reduction) with targeted goal
 
 ## Future Enhancements
 

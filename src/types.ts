@@ -37,6 +37,8 @@ export interface CompressionPolicy {
   tokenThreshold?: number;
   /** Maximum tokens for compressed output */
   maxOutputTokens?: number;
+  /** Whether to add _mcpith_goal field for context-aware compression */
+  goalAware?: boolean;
 }
 
 /**
@@ -53,6 +55,8 @@ export interface CompressionConfig {
   defaultPolicy: CompressionPolicy & { enabled: boolean; tokenThreshold: number };
   /** Per-tool policy overrides (key is namespaced tool name, e.g. "upstream__tool") */
   toolPolicies?: Record<string, CompressionPolicy>;
+  /** Enable goal-aware compression globally (adds _mcpith_goal to tool schemas). Default: true */
+  goalAware?: boolean;
 }
 
 /**

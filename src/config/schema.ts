@@ -30,6 +30,7 @@ export const compressionPolicySchema = z.object({
   enabled: z.boolean().optional(),
   tokenThreshold: z.number().int().positive().optional(),
   maxOutputTokens: z.number().int().positive().optional(),
+  goalAware: z.boolean().optional(),
 });
 
 export const defaultPolicySchema = z.object({
@@ -47,6 +48,7 @@ export const compressionSchema = z.object({
     tokenThreshold: 1000,
   }),
   toolPolicies: z.record(compressionPolicySchema).optional(),
+  goalAware: z.boolean().default(true),
 });
 
 export const downstreamSchema = z

@@ -139,10 +139,14 @@ export class DownstreamServer {
       const { name, arguments: args } = request.params;
       logger.debug(`Handling tools/call request: ${name}`);
 
-      const result = await this.router.callTool(name, args || {});
+      const { result, goal } = await this.router.callTool(name, args || {});
 
-      // Compress the result using tool-specific policy
-      const compressedResult = await this.compressor.compressToolResult(result, name);
+      // Compress the result using tool-specific policy and goal context
+      const compressedResult = await this.compressor.compressToolResult(
+        result,
+        name,
+        goal
+      );
 
       return compressedResult;
     });

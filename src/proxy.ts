@@ -19,7 +19,10 @@ export async function createProxy(config: MCPithConfig): Promise<MCPithProxy> {
   logger.info("Initializing MCPith proxy");
 
   // Create core components
-  const aggregator = new Aggregator({ toolsConfig: config.tools });
+  const aggregator = new Aggregator({
+    toolsConfig: config.tools,
+    compressionConfig: config.compression,
+  });
   const router = new Router(aggregator);
   const compressor = new Compressor(config.compression);
   const cache = new MemoryCache(config.cache);
