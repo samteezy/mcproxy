@@ -79,6 +79,59 @@ export const toolsSchema = z.object({
   hidden: z.array(z.string()).optional(),
 });
 
+export const piiTypeSchema = z.enum([
+  "email",
+  "ssn",
+  "phone",
+  "credit_card",
+  "ip_address",
+  "date_of_birth",
+  "passport",
+  "driver_license",
+  "custom",
+]);
+
+export const customPatternDefSchema = z.object({
+  regex: z.string().min(1),
+  replacement: z.string(),
+});
+
+export const maskingPolicySchema = z.object({
+  enabled: z.boolean().optional(),
+  piiTypes: z.array(piiTypeSchema).optional(),
+  llmFallback: z.boolean().optional(),
+  llmFallbackThreshold: z.number().min(0).max(1).optional(),
+  customPatterns: z.record(customPatternDefSchema).optional(),
+});
+
+export const maskingDefaultPolicySchema = z.object({
+  enabled: z.boolean().default(true),
+  piiTypes: z
+    .array(piiTypeSchema)
+    .default(["email", "ssn", "phone", "credit_card", "ip_address"]),
+  llmFallback: z.boolean().default(false),
+  llmFallbackThreshold: z.number().min(0).max(1).default(0.7),
+  customPatterns: z.record(customPatternDefSchema).optional(),
+});
+
+export const maskingLlmConfigSchema = z.object({
+  baseUrl: z.string().url(),
+  apiKey: z.string().optional(),
+  model: z.string().min(1),
+});
+
+export const maskingSchema = z.object({
+  enabled: z.boolean().default(false),
+  defaultPolicy: maskingDefaultPolicySchema.default({
+    enabled: true,
+    piiTypes: ["email", "ssn", "phone", "credit_card", "ip_address"],
+    llmFallback: false,
+    llmFallbackThreshold: 0.7,
+  }),
+  toolPolicies: z.record(maskingPolicySchema).optional(),
+  llmConfig: maskingLlmConfigSchema.optional(),
+});
+
 export const configSchema = z.object({
   downstream: downstreamSchema,
   upstreams: z.array(upstreamServerSchema).min(1),
@@ -89,6 +142,7 @@ export const configSchema = z.object({
     maxEntries: 1000,
   }),
   tools: toolsSchema.optional(),
+  masking: maskingSchema.optional(),
   logLevel: z.enum(["error", "warn", "info", "debug"]).default("info"),
 });
 

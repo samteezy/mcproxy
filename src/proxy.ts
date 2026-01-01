@@ -2,6 +2,7 @@ import express from "express";
 import type { MCPithConfig, UpstreamStatus } from "./types.js";
 import { UpstreamClient, DownstreamServer, Aggregator, Router } from "./mcp/index.js";
 import { Compressor } from "./compression/index.js";
+import { Masker } from "./masking/index.js";
 import { MemoryCache } from "./cache/index.js";
 import { initLogger } from "./logger.js";
 
@@ -23,7 +24,15 @@ export async function createProxy(config: MCPithConfig): Promise<MCPithProxy> {
     toolsConfig: config.tools,
     compressionConfig: config.compression,
   });
-  const router = new Router(aggregator);
+
+  // Create masker if configured
+  let masker: Masker | undefined;
+  if (config.masking?.enabled) {
+    masker = new Masker(config.masking);
+    logger.info("PII masking enabled");
+  }
+
+  const router = new Router(aggregator, masker);
   const compressor = new Compressor(config.compression);
   const cache = new MemoryCache(config.cache);
 

@@ -16,6 +16,7 @@ import type { DownstreamConfig } from "../types.js";
 import type { Aggregator } from "./aggregator.js";
 import type { Router } from "./router.js";
 import type { Compressor } from "../compression/compressor.js";
+import { Masker } from "../masking/index.js";
 import { getLogger } from "../logger.js";
 
 export interface DownstreamServerOptions {
@@ -139,7 +140,10 @@ export class DownstreamServer {
       const { name, arguments: args } = request.params;
       logger.debug(`Handling tools/call request: ${name}`);
 
-      const { result, goal } = await this.router.callTool(name, args || {});
+      const { result, goal, restorationMap } = await this.router.callTool(
+        name,
+        args || {}
+      );
 
       // Compress the result using tool-specific policy and goal context
       const compressedResult = await this.compressor.compressToolResult(
@@ -147,6 +151,18 @@ export class DownstreamServer {
         name,
         goal
       );
+
+      // Restore original PII values before returning to client
+      if (restorationMap && restorationMap.size > 0) {
+        logger.debug(
+          `Restoring ${restorationMap.size} masked value(s) before returning to client`
+        );
+        for (const content of compressedResult.content) {
+          if (content.type === "text" && typeof content.text === "string") {
+            content.text = Masker.restoreOriginals(content.text, restorationMap);
+          }
+        }
+      }
 
       return compressedResult;
     });

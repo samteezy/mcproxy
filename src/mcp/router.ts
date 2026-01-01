@@ -4,6 +4,7 @@ import type {
   GetPromptResult,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { Aggregator } from "./aggregator.js";
+import type { Masker } from "../masking/index.js";
 import { getLogger } from "../logger.js";
 
 /**
@@ -11,9 +12,11 @@ import { getLogger } from "../logger.js";
  */
 export class Router {
   private aggregator: Aggregator;
+  private masker: Masker | null;
 
-  constructor(aggregator: Aggregator) {
+  constructor(aggregator: Aggregator, masker?: Masker) {
     this.aggregator = aggregator;
+    this.masker = masker ?? null;
   }
 
   /**
@@ -27,7 +30,7 @@ export class Router {
   async callTool(
     namespacedName: string,
     args: Record<string, unknown>
-  ): Promise<{ result: CallToolResult; goal?: string }> {
+  ): Promise<{ result: CallToolResult; goal?: string; restorationMap?: Map<string, string> }> {
     const logger = getLogger();
 
     // Extract goal before forwarding (strip from args)
@@ -35,8 +38,24 @@ export class Router {
       typeof args[Router.GOAL_FIELD] === "string"
         ? (args[Router.GOAL_FIELD] as string)
         : undefined;
-    const forwardArgs = { ...args };
+    let forwardArgs = { ...args };
     delete forwardArgs[Router.GOAL_FIELD];
+
+    // Apply PII masking to arguments before forwarding
+    let restorationMap: Map<string, string> | undefined;
+    if (this.masker?.isEnabled()) {
+      const maskResult = await this.masker.maskToolArgs(
+        forwardArgs,
+        namespacedName
+      );
+      if (maskResult.wasMasked) {
+        logger.debug(
+          `Masked ${maskResult.maskedFields.length} PII field(s) in '${namespacedName}'`
+        );
+        forwardArgs = maskResult.masked;
+        restorationMap = maskResult.restorationMap;
+      }
+    }
 
     // Check if tool is hidden (reject even if it exists)
     if (this.aggregator.isToolHidden(namespacedName)) {
@@ -52,6 +71,7 @@ export class Router {
           isError: true,
         },
         goal,
+        restorationMap,
       };
     }
 
@@ -70,6 +90,7 @@ export class Router {
           isError: true,
         },
         goal,
+        restorationMap,
       };
     }
 
@@ -84,7 +105,7 @@ export class Router {
 
     try {
       const result = await client.callTool(originalName, forwardArgs);
-      return { result, goal };
+      return { result, goal, restorationMap };
     } catch (error) {
       logger.error(`Error calling tool '${originalName}' on '${client.id}':`, error);
       return {
@@ -98,6 +119,7 @@ export class Router {
           isError: true,
         },
         goal,
+        restorationMap,
       };
     }
   }

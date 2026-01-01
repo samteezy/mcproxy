@@ -82,6 +82,32 @@ export function generateExampleConfig(): MCPithConfig {
         // "example-server__dangerous_tool",
       ],
     },
+    // PII masking configuration (disabled by default)
+    // masking: {
+    //   enabled: true,
+    //   defaultPolicy: {
+    //     enabled: true,
+    //     piiTypes: ["email", "ssn", "phone", "credit_card", "ip_address"],
+    //     llmFallback: false,
+    //     llmFallbackThreshold: 0.7,
+    //   },
+    //   toolPolicies: {
+    //     // Disable masking for a specific tool
+    //     // "example-server__some-tool": { enabled: false },
+    //     // Enable LLM fallback for a tool with custom patterns
+    //     // "database__query": {
+    //     //   llmFallback: true,
+    //     //   customPatterns: {
+    //     //     "employee_id": { regex: "EMP[0-9]{6}", replacement: "[EMPLOYEE_ID_REDACTED]" }
+    //     //   }
+    //     // },
+    //   },
+    //   // LLM config for fallback detection (optional)
+    //   // llmConfig: {
+    //   //   baseUrl: "http://localhost:8080/v1",
+    //   //   model: "local-model",
+    //   // },
+    // },
     logLevel: "info",
   };
 }

@@ -18,8 +18,9 @@ Upstream MCP Server(s)
 
 - **Transparent proxy** - Works with any MCP client and server
 - **Tool hiding** - Hide unwanted tools to reduce context pollution and improve model focus
+- **PII masking** - Mask sensitive data (emails, SSNs, phone numbers, etc.) before sending to upstream servers
 - **Smart compression** - Auto-detects content type (JSON, code, text) and applies appropriate compression strategy
-- **Per-tool policies** - Configure different compression thresholds for different tools
+- **Per-tool policies** - Configure different compression thresholds and masking rules for different tools
 - **Token-based threshold** - Only compresses responses exceeding configurable token count
 - **Multi-server aggregation** - Connect to multiple upstream MCP servers simultaneously
 - **All transports** - Supports stdio, SSE, and Streamable HTTP for both upstream and downstream
@@ -179,6 +180,86 @@ Patterns support `*` as wildcard:
 Hidden tools are:
 - Not listed in `tools/list` responses
 - Rejected if called directly (returns "tool not found")
+
+### PII Masking
+
+Protect sensitive data from being sent to upstream MCP servers. PII is masked before forwarding to upstreams and restored before returning to the client.
+
+```
+Client sends:    email=alice@example.com
+        ↓
+    [MASK]       email=[EMAIL_1]  (upstream never sees original)
+        ↓
+    Upstream     processes masked data
+        ↓
+   [RESTORE]     email=alice@example.com
+        ↓
+Client receives: original values restored
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `enabled` | `boolean` | Enable/disable PII masking globally (default: false) |
+| `defaultPolicy` | `object` | Default masking policy for all tools |
+| `toolPolicies` | `object` | Per-tool policy overrides |
+| `llmConfig` | `object` | Optional LLM config for fallback detection |
+
+#### Masking Policy
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `enabled` | `boolean` | Enable/disable masking for this tool |
+| `piiTypes` | `string[]` | PII types to mask (see below) |
+| `llmFallback` | `boolean` | Use LLM for ambiguous cases |
+| `llmFallbackThreshold` | `number` | Confidence threshold (0-1) to trigger LLM |
+| `customPatterns` | `object` | Custom regex patterns |
+
+#### Supported PII Types
+
+| Type | Placeholder | Example |
+|------|-------------|---------|
+| `email` | `[EMAIL_1]` | `user@example.com` |
+| `ssn` | `[SSN_1]` | `123-45-6789` |
+| `phone` | `[PHONE_1]` | `555-123-4567` |
+| `credit_card` | `[CREDIT_CARD_1]` | `4111111111111111` |
+| `ip_address` | `[IP_1]` | `192.168.1.100` |
+| `date_of_birth` | `[DOB_1]` | `01/15/1990` |
+| `passport` | `[PASSPORT_1]` | `A12345678` |
+| `driver_license` | `[DL_1]` | `D1234567` |
+
+#### Example Configuration
+
+```json
+{
+  "masking": {
+    "enabled": true,
+    "defaultPolicy": {
+      "enabled": true,
+      "piiTypes": ["email", "ssn", "phone", "credit_card", "ip_address"],
+      "llmFallback": false,
+      "llmFallbackThreshold": 0.7
+    },
+    "toolPolicies": {
+      "my-server__internal_tool": {
+        "enabled": false
+      },
+      "database__query": {
+        "llmFallback": true,
+        "customPatterns": {
+          "employee_id": {
+            "regex": "EMP[0-9]{6}",
+            "replacement": "[EMPLOYEE_ID_REDACTED]"
+          }
+        }
+      }
+    },
+    "llmConfig": {
+      "baseUrl": "http://localhost:8080/v1",
+      "model": "your-model"
+    }
+  }
+}
+```
 
 ## Tool Namespacing
 
