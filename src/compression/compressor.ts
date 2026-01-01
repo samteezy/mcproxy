@@ -108,6 +108,8 @@ export class Compressor {
         maxTokens: policy.maxOutputTokens,
       });
 
+      logger.debug(`Raw LLM response:\n${text}`);
+
       const compressedTokens = this.countTokens(text);
       const ratio = ((1 - compressedTokens / originalTokens) * 100).toFixed(1);
 
