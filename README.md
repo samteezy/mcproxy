@@ -287,6 +287,22 @@ npm run lint         # Linting
 npm run test         # Run tests
 ```
 
+## Requirements
+
+- Node.js 20+
+- TypeScript 5.x
+
+### Key Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `@modelcontextprotocol/sdk` | 1.25.x | MCP protocol implementation |
+| `ai` / `@ai-sdk/openai-compatible` | 6.x / 2.x | LLM API client (Vercel AI SDK) |
+| `ai-tokenizer` | 1.x | Token counting (o200k_base encoding) |
+| `express` | 5.x | HTTP server for SSE/Streamable HTTP transports |
+| `zod` | 4.x | Configuration schema validation |
+| `winston` | 3.x | Logging |
+
 ## License
 
 MIT
