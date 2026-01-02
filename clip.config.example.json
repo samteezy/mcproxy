@@ -37,6 +37,7 @@
   ],
   "compression": {
     "baseUrl": "http://localhost:8080/v1",
+    "apiKey": "your-api-key",
     "model": "your-model",
     "defaultPolicy": {
       "enabled": true,
