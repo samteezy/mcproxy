@@ -345,7 +345,7 @@ npm run test         # Run tests
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 24+
 - TypeScript 5.x
 
 ### Key Dependencies

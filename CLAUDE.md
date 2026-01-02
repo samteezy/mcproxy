@@ -54,7 +54,7 @@ Three strategies auto-selected based on content:
 
 ## Tech Stack
 
-- Node.js 20+, TypeScript 5.x
+- Node.js 24+, TypeScript 5.x
 - `@modelcontextprotocol/sdk` - MCP implementation
 - `ai` / `@ai-sdk/openai-compatible` - LLM API client (Vercel)
 - `ai-tokenizer` - Token counting

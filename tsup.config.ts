@@ -8,7 +8,7 @@ export default defineConfig([
     dts: true,
     clean: true,
     sourcemap: true,
-    target: "node20",
+    target: "node24",
     shims: false,
     // Don't bundle winston-transport as it has CommonJS require issues
     external: ["winston-transport"],
