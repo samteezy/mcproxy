@@ -97,6 +97,75 @@ mcp-context-proxy --init
 mcp-context-proxy
 ```
 
+## Web Dashboard
+
+When running with HTTP transports (`sse` or `streamable-http`), MCPCP provides a web dashboard for monitoring and configuration.
+
+### Accessing the Dashboard
+
+The dashboard is available at the root URL of your proxy:
+
+```
+http://localhost:3000/
+```
+
+(Replace `localhost:3000` with your configured host and port)
+
+> **Note:** The dashboard is only available with HTTP transports. When using `stdio` transport, there is no HTTP server and thus no dashboard.
+
+### Dashboard Features
+
+#### Status Overview
+
+The main dashboard shows:
+- **Proxy status** - Whether the proxy is running and healthy
+- **Upstream connections** - Each connected MCP server with its connection status
+- **Tool/Resource/Prompt counts** - Number of items aggregated from each upstream
+
+Click on any upstream to expand and see its full list of tools, resources, and prompts.
+
+#### Live Configuration Editor
+
+The Config tab provides a YAML editor for modifying your proxy configuration:
+
+1. **View current config** - The editor loads your active configuration
+2. **Edit inline** - Modify settings directly in the browser
+3. **Validate** - Configuration is validated before applying
+4. **Hot reload** - Click "Apply & Reload" to apply changes without restarting the proxy
+
+Hot reload will:
+- Disconnect from old upstreams
+- Apply the new configuration
+- Reconnect to upstreams (including any new ones)
+- Refresh all aggregated tools, resources, and prompts
+
+> **Tip:** Keep the Logs tab open while reloading to monitor the reconnection process.
+
+#### Real-time Logs
+
+The Logs tab streams proxy logs in real-time via SSE:
+
+- **Log levels** - Filter by debug, info, warn, error
+- **Auto-scroll** - Automatically follows new log entries
+- **Searchable** - Find specific log messages
+
+Useful for debugging compression behavior, upstream connection issues, or cache hits/misses.
+
+### API Endpoints
+
+The dashboard uses these API endpoints, which are also available for programmatic access:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/status` | GET | Current proxy and upstream status |
+| `/api/status/:upstreamId` | GET | Details for a specific upstream |
+| `/api/config` | GET | Current configuration (YAML) |
+| `/api/config` | PUT | Update and reload configuration |
+| `/api/config/validate` | POST | Validate configuration without saving |
+| `/api/reload` | POST | Reload configuration from disk |
+| `/api/logs/stream` | GET | SSE stream of real-time logs |
+| `/health` | GET | Health check endpoint |
+
 ## Configuration
 
 ### Downstream (Client-facing)
