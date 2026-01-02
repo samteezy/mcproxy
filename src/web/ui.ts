@@ -323,6 +323,125 @@ export function generateHtml(): string {
       gap: 0.25rem;
     }
 
+    .upstream-card.expandable {
+      cursor: pointer;
+    }
+
+    .upstream-card.expandable:hover {
+      border-color: var(--accent);
+    }
+
+    .upstream-toggle {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      transition: transform 0.2s;
+    }
+
+    .upstream-toggle.expanded {
+      transform: rotate(90deg);
+    }
+
+    .upstream-details {
+      margin-top: 1rem;
+      border-top: 1px solid var(--border);
+      padding-top: 1rem;
+    }
+
+    .details-section {
+      margin-bottom: 1rem;
+    }
+
+    .details-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .details-section-header {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.05em;
+    }
+
+    .details-item {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 0.375rem;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .details-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .details-item-name {
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: var(--accent);
+      margin-bottom: 0.25rem;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    }
+
+    .details-item-original {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.25rem;
+    }
+
+    .details-item-description {
+      font-size: 0.8125rem;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .details-item-schema {
+      font-size: 0.75rem;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+      background: var(--bg-tertiary);
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      overflow-x: auto;
+      color: var(--text-secondary);
+    }
+
+    .schema-property {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.125rem 0;
+    }
+
+    .schema-property-name {
+      color: var(--accent);
+    }
+
+    .schema-property-type {
+      color: var(--warning);
+    }
+
+    .schema-property-required {
+      color: var(--error);
+      font-size: 0.625rem;
+    }
+
+    .schema-property-desc {
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+
+    .details-loading {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      padding: 0.5rem 0;
+    }
+
+    .details-empty {
+      color: var(--text-secondary);
+      font-size: 0.8125rem;
+      font-style: italic;
+    }
+
     /* Notifications */
     .notification {
       position: fixed;
@@ -423,11 +542,14 @@ export function generateHtml(): string {
       <section class="tab-content" :class="{ active: tab === 'status' }">
         <div id="status-container">
           <template x-for="upstream in upstreams" :key="upstream.id">
-            <div class="upstream-card">
+            <div class="upstream-card expandable" @click="toggleUpstream(upstream.id)">
               <div class="upstream-header">
-                <div>
-                  <div class="upstream-name" x-text="upstream.name"></div>
-                  <div class="upstream-id" x-text="upstream.id"></div>
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  <span class="upstream-toggle" :class="{ expanded: expandedUpstreams[upstream.id] }">▶</span>
+                  <div>
+                    <div class="upstream-name" x-text="upstream.name"></div>
+                    <div class="upstream-id" x-text="upstream.id"></div>
+                  </div>
                 </div>
                 <div class="upstream-status">
                   <div class="status-dot" :class="{ disconnected: !upstream.connected }"></div>
@@ -439,6 +561,93 @@ export function generateHtml(): string {
                 <span><strong x-text="upstream.resourceCount"></strong> resources</span>
                 <span><strong x-text="upstream.promptCount"></strong> prompts</span>
               </div>
+
+              <!-- Expanded details -->
+              <template x-if="expandedUpstreams[upstream.id]">
+                <div class="upstream-details" @click.stop>
+                  <template x-if="upstreamDetails[upstream.id]?.loading">
+                    <div class="details-loading">Loading...</div>
+                  </template>
+                  <template x-if="upstreamDetails[upstream.id] && !upstreamDetails[upstream.id].loading">
+                    <div>
+                      <!-- Tools section -->
+                      <div class="details-section" x-show="upstreamDetails[upstream.id].tools?.length > 0">
+                        <div class="details-section-header">Tools</div>
+                        <template x-for="tool in upstreamDetails[upstream.id].tools" :key="tool.name">
+                          <div class="details-item">
+                            <div class="details-item-name" x-text="tool.name"></div>
+                            <div class="details-item-original" x-text="'Original: ' + tool.originalName"></div>
+                            <div class="details-item-description" x-text="tool.description || 'No description'"></div>
+                            <template x-if="tool.inputSchema?.properties">
+                              <div class="details-item-schema">
+                                <template x-for="(prop, propName) in tool.inputSchema.properties" :key="propName">
+                                  <div class="schema-property">
+                                    <span class="schema-property-name" x-text="propName"></span>
+                                    <span class="schema-property-type" x-text="prop.type || 'any'"></span>
+                                    <template x-if="tool.inputSchema.required?.includes(propName)">
+                                      <span class="schema-property-required">required</span>
+                                    </template>
+                                    <template x-if="prop.description">
+                                      <span class="schema-property-desc" x-text="'- ' + prop.description"></span>
+                                    </template>
+                                  </div>
+                                </template>
+                              </div>
+                            </template>
+                          </div>
+                        </template>
+                      </div>
+
+                      <!-- Resources section -->
+                      <div class="details-section" x-show="upstreamDetails[upstream.id].resources?.length > 0">
+                        <div class="details-section-header">Resources</div>
+                        <template x-for="resource in upstreamDetails[upstream.id].resources" :key="resource.uri">
+                          <div class="details-item">
+                            <div class="details-item-name" x-text="resource.name"></div>
+                            <div class="details-item-original" x-text="'URI: ' + resource.uri"></div>
+                            <div class="details-item-description" x-text="resource.description || 'No description'"></div>
+                            <template x-if="resource.mimeType">
+                              <div style="font-size: 0.75rem; color: var(--text-secondary);" x-text="'Type: ' + resource.mimeType"></div>
+                            </template>
+                          </div>
+                        </template>
+                      </div>
+
+                      <!-- Prompts section -->
+                      <div class="details-section" x-show="upstreamDetails[upstream.id].prompts?.length > 0">
+                        <div class="details-section-header">Prompts</div>
+                        <template x-for="prompt in upstreamDetails[upstream.id].prompts" :key="prompt.name">
+                          <div class="details-item">
+                            <div class="details-item-name" x-text="prompt.name"></div>
+                            <div class="details-item-original" x-text="'Original: ' + prompt.originalName"></div>
+                            <div class="details-item-description" x-text="prompt.description || 'No description'"></div>
+                            <template x-if="prompt.arguments?.length > 0">
+                              <div class="details-item-schema">
+                                <template x-for="arg in prompt.arguments" :key="arg.name">
+                                  <div class="schema-property">
+                                    <span class="schema-property-name" x-text="arg.name"></span>
+                                    <template x-if="arg.required">
+                                      <span class="schema-property-required">required</span>
+                                    </template>
+                                    <template x-if="arg.description">
+                                      <span class="schema-property-desc" x-text="'- ' + arg.description"></span>
+                                    </template>
+                                  </div>
+                                </template>
+                              </div>
+                            </template>
+                          </div>
+                        </template>
+                      </div>
+
+                      <!-- Empty state -->
+                      <template x-if="!upstreamDetails[upstream.id].tools?.length && !upstreamDetails[upstream.id].resources?.length && !upstreamDetails[upstream.id].prompts?.length">
+                        <div class="details-empty">No tools, resources, or prompts available</div>
+                      </template>
+                    </div>
+                  </template>
+                </div>
+              </template>
             </div>
           </template>
           <template x-if="upstreams.length === 0">
@@ -473,6 +682,8 @@ export function generateHtml(): string {
         autoScroll: true,
         logs: [],
         upstreams: [],
+        expandedUpstreams: {},
+        upstreamDetails: {},
         notification: null,
         editor: null,
         eventSource: null,
@@ -662,6 +873,30 @@ export function generateHtml(): string {
             this.upstreams = data.upstreams || [];
           } catch (error) {
             console.error('Failed to load status:', error);
+          }
+        },
+
+        async toggleUpstream(upstreamId) {
+          // Toggle expansion state
+          this.expandedUpstreams[upstreamId] = !this.expandedUpstreams[upstreamId];
+
+          // Fetch details if expanding and not already loaded
+          if (this.expandedUpstreams[upstreamId] && !this.upstreamDetails[upstreamId]) {
+            this.upstreamDetails[upstreamId] = { loading: true, tools: [], resources: [], prompts: [] };
+
+            try {
+              const res = await fetch('/api/status/' + encodeURIComponent(upstreamId));
+              const data = await res.json();
+              this.upstreamDetails[upstreamId] = {
+                loading: false,
+                tools: data.tools || [],
+                resources: data.resources || [],
+                prompts: data.prompts || [],
+              };
+            } catch (error) {
+              console.error('Failed to load upstream details:', error);
+              this.upstreamDetails[upstreamId] = { loading: false, tools: [], resources: [], prompts: [], error: error.message };
+            }
           }
         },
 

@@ -172,7 +172,7 @@ export class Aggregator {
 
     // Append instruction to description
     const goalInstruction =
-      "Use '_clip_goal' to share your the information you hope to learn. Will be used to refine the upstream tool's response for your specific data need.";
+      "Use '_clip_goal' to share the information you hope to learn. Will be used to refine the upstream tool's response for your specific data need.";
     const description = tool.description
       ? `${tool.description} ${goalInstruction}`
       : goalInstruction;
@@ -188,7 +188,7 @@ export class Aggregator {
         _clip_goal: {
           type: "string" as const,
           description:
-            "What specific information you're looking for (e.g., 'the authentication API endpoint', 'references to Ulysses S. Grant').",
+            "Specific search term of what you're looking for (e.g., 'the authentication API endpoint', 'references to Ulysses S. Grant').",
         },
       },
     };
@@ -223,6 +223,32 @@ export class Aggregator {
       description: p.description,
       arguments: p.arguments,
     }));
+  }
+
+  /**
+   * Get counts of tools, resources, and prompts for a specific upstream
+   */
+  getUpstreamCounts(upstreamId: string): { tools: number; resources: number; prompts: number } {
+    return {
+      tools: this.toolsCache.filter((t) => t.upstreamId === upstreamId).length,
+      resources: this.resourcesCache.filter((r) => r.upstreamId === upstreamId).length,
+      prompts: this.promptsCache.filter((p) => p.upstreamId === upstreamId).length,
+    };
+  }
+
+  /**
+   * Get detailed tools, resources, and prompts for a specific upstream
+   */
+  getUpstreamDetails(upstreamId: string): {
+    tools: AggregatedTool[];
+    resources: AggregatedResource[];
+    prompts: AggregatedPrompt[];
+  } {
+    return {
+      tools: this.toolsCache.filter((t) => t.upstreamId === upstreamId),
+      resources: this.resourcesCache.filter((r) => r.upstreamId === upstreamId),
+      prompts: this.promptsCache.filter((p) => p.upstreamId === upstreamId),
+    };
   }
 
   /**

@@ -5,11 +5,24 @@ import type { Application, Request, Response } from "express";
 import { readFileSync, writeFileSync, renameSync } from "fs";
 import { configSchema } from "../config/schema.js";
 import { getStreamingTransport } from "../logger.js";
-import type { CLIPConfig, UpstreamStatus } from "../types.js";
+import type {
+  CLIPConfig,
+  UpstreamStatus,
+  AggregatedTool,
+  AggregatedResource,
+  AggregatedPrompt,
+} from "../types.js";
+
+export interface UpstreamDetails {
+  tools: AggregatedTool[];
+  resources: AggregatedResource[];
+  prompts: AggregatedPrompt[];
+}
 
 export interface ApiContext {
   configPath: string;
   getStatus: () => UpstreamStatus[];
+  getUpstreamDetails: (upstreamId: string) => UpstreamDetails;
   reload: (config: CLIPConfig) => Promise<void>;
   loadConfig: (path: string) => CLIPConfig;
 }
@@ -202,6 +215,28 @@ export function registerApiRoutes(app: Application, context: ApiContext): void {
     res.json({
       status: "ok",
       upstreams: context.getStatus(),
+    });
+  });
+
+  // GET /api/status/:upstreamId - Get detailed tools/resources/prompts for an upstream
+  app.get("/api/status/:upstreamId", (req: Request, res: Response) => {
+    const { upstreamId } = req.params;
+    const details = context.getUpstreamDetails(upstreamId);
+
+    // Check if upstream exists (has any data or is in status list)
+    const statuses = context.getStatus();
+    const upstream = statuses.find((s) => s.id === upstreamId);
+
+    if (!upstream) {
+      res.status(404).json({ error: `Upstream '${upstreamId}' not found` });
+      return;
+    }
+
+    res.json({
+      id: upstreamId,
+      name: upstream.name,
+      connected: upstream.connected,
+      ...details,
     });
   });
 }

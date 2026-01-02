@@ -71,14 +71,17 @@ export async function createProxy(config: CLIPConfig, configPath: string): Promi
   let cacheCleanupInterval: ReturnType<typeof setInterval> | null = null;
 
   function getStatus(): UpstreamStatus[] {
-    return upstreamClients.map((client) => ({
-      id: client.id,
-      name: client.name,
-      connected: client.isConnected,
-      toolCount: 0, // Would need to track this
-      resourceCount: 0,
-      promptCount: 0,
-    }));
+    return upstreamClients.map((client) => {
+      const counts = aggregator.getUpstreamCounts(client.id);
+      return {
+        id: client.id,
+        name: client.name,
+        connected: client.isConnected,
+        toolCount: counts.tools,
+        resourceCount: counts.resources,
+        promptCount: counts.prompts,
+      };
+    });
   }
 
   function getConfigPath(): string {
@@ -214,6 +217,7 @@ export async function createProxy(config: CLIPConfig, configPath: string): Promi
       registerApiRoutes(expressApp, {
         configPath,
         getStatus,
+        getUpstreamDetails: (upstreamId: string) => aggregator.getUpstreamDetails(upstreamId),
         reload,
         loadConfig,
       });
