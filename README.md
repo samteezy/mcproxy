@@ -101,6 +101,9 @@ mcp-context-proxy
 
 When running with HTTP transports (`sse` or `streamable-http`), MCPCP provides a web dashboard for monitoring and configuration.
 
+<img width="1465" height="765" alt="image" src="https://github.com/user-attachments/assets/ebccb567-3d2d-4eb8-b2a6-cebcb09297eb" />
+
+
 ### Accessing the Dashboard
 
 The dashboard is available at the root URL of your proxy:
