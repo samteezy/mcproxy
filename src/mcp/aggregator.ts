@@ -181,9 +181,10 @@ export class Aggregator {
       ? `${tool.description} ${goalInstruction}`
       : goalInstruction;
 
-    // Add _clip_goal to inputSchema.properties
+    // Add _clip_goal to inputSchema.properties and required
     const existingSchema = tool.inputSchema;
     const existingProperties = existingSchema.properties || {};
+    const existingRequired = (existingSchema.required as string[]) || [];
 
     const inputSchema = {
       ...existingSchema,
@@ -195,6 +196,7 @@ export class Aggregator {
             "Specific search term of what you're looking for (e.g., 'the authentication API endpoint', 'references to Ulysses S. Grant').",
         },
       },
+      required: [...existingRequired, "_clip_goal"],
     };
 
     return { name: tool.name, description, inputSchema };
