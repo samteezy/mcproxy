@@ -13,6 +13,16 @@ export class MemoryCache<T> {
   }
 
   /**
+   * Update the cache configuration (used during hot reload)
+   */
+  updateConfig(config: CacheConfig): void {
+    this.config = config;
+    if (!config.enabled) {
+      this.clear();
+    }
+  }
+
+  /**
    * Get a value from the cache
    */
   get(key: string): T | undefined {

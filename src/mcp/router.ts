@@ -20,6 +20,13 @@ export class Router {
   }
 
   /**
+   * Update the masker (used during hot reload)
+   */
+  setMasker(masker: Masker | undefined): void {
+    this.masker = masker ?? null;
+  }
+
+  /**
    * Result from callTool including extracted goal
    */
   public static readonly GOAL_FIELD = "_clip_goal";

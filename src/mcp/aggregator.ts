@@ -31,6 +31,14 @@ export class Aggregator {
   }
 
   /**
+   * Update the resolver (used during hot reload)
+   */
+  setResolver(resolver: ToolConfigResolver): void {
+    this.resolver = resolver;
+    this.invalidateCache();
+  }
+
+  /**
    * Register an upstream client
    */
   registerClient(client: UpstreamClient): void {

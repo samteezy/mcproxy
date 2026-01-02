@@ -125,6 +125,13 @@ export class DownstreamServer {
     logger.info("Downstream server stopped");
   }
 
+  /**
+   * Update the compressor (used during hot reload)
+   */
+  setCompressor(compressor: Compressor): void {
+    this.compressor = compressor;
+  }
+
   private registerHandlers(): void {
     const logger = getLogger();
 

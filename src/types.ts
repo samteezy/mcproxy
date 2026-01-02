@@ -314,3 +314,13 @@ export interface UpstreamStatus {
   resourceCount: number;
   promptCount: number;
 }
+
+/**
+ * Log entry for streaming logs to UI
+ */
+export interface LogEntry {
+  timestamp: string;
+  level: string;
+  message: string;
+  meta?: Record<string, unknown>;
+}

@@ -73,9 +73,10 @@ async function main(): Promise<void> {
   }
 
   // Load configuration
+  const configPath = values.config as string;
   let config;
   try {
-    config = loadConfig(values.config as string);
+    config = loadConfig(configPath);
   } catch (error) {
     console.error(`Error loading configuration: ${error instanceof Error ? error.message : error}`);
     console.error(`\nRun 'clip --init' to generate an example configuration.`);
@@ -83,13 +84,33 @@ async function main(): Promise<void> {
   }
 
   // Create and start proxy
-  const proxy = await createProxy(config);
+  const proxy = await createProxy(config, configPath);
 
-  // Handle shutdown
+  // Handle shutdown with force exit on timeout or double signal
+  let isShuttingDown = false;
   const shutdown = async () => {
-    console.log("\nShutting down...");
-    await proxy.stop();
-    process.exit(0);
+    if (isShuttingDown) {
+      console.log("\nForce exit");
+      process.exit(1);
+    }
+    isShuttingDown = true;
+    console.log("\nShutting down... (press Ctrl+C again to force)");
+
+    // Force exit after 5 seconds if graceful shutdown hangs
+    const forceExitTimeout = setTimeout(() => {
+      console.error("Shutdown timed out, forcing exit");
+      process.exit(1);
+    }, 5000);
+    forceExitTimeout.unref(); // Don't keep process alive for this timer
+
+    try {
+      await proxy.stop();
+      clearTimeout(forceExitTimeout);
+      process.exit(0);
+    } catch (error) {
+      console.error("Error during shutdown:", error);
+      process.exit(1);
+    }
   };
 
   process.on("SIGINT", shutdown);
