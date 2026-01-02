@@ -1,18 +1,18 @@
 # mcp-context-proxy
 
-**MCP Context Proxy**
+**MCP Context Proxy (MCPCP)**
 
 A transparent MCP (Model Context Protocol) proxy that compresses large tool responses using an external LLM before passing them to resource-constrained local models.
 
 > **This project is meant for personal use, and no guarantees are made for mission critical production environments... or whatever your environment is. Yeah, it's vibe coded. Trust it as much as you'd trust any other random code you find on the web.**
 
-## Why mcp-context-proxy?
+## Why?
 
 For those of us running LLMs locally, especially at home, context costs us time, not just tokens. This project was borne out of frustration with MCPs that are little more than "API wrappers" and would respond with often much more information than I needed, eating up valuable context and taking up time while I waited for the prompt processing to complete.
 
 I wanted to see how a tiny LLM/SLM could help compress MCP outputs before responding back to the client LLM. That worked, and then I started adding in more functionality to make this a helpful little Swiss Army Knife for enthusiasts like myself... but like a really tiny Swiss Army Knife, not one of those obscene behemoths.
 
-## How do I use mcp-context-proxy?
+## Ok, so how do I use it?
 
 Let's say you're running Llama.cpp locally with something like `gpt-oss-120b`. You have the usual `fetch` and maybe `searxng` MCPs set up doing some basic web search and URL retrieval. But processing those pages is taking forever and adding useless context. So you allocate a little VRAM, or even regular RAM, to `Qwen3-0.6B` or `LFM2-1.2B` and set up mcp-context-proxy as the proxy for those MCPs. Now if the token count passes a certain threshold, your small model performs an extraction/summary against the content and returns *that* back to your larger model, saving time.
 
@@ -42,15 +42,19 @@ Upstream MCP Server(s)
 ## Installation
 
 ```bash
-npm install
-npm run build
+npm install -g mcp-context-proxy
+```
+
+Or run directly with npx:
+```bash
+npx mcp-context-proxy --help
 ```
 
 ## Quick Start
 
 1. Generate a config file:
 ```bash
-node dist/cli.js --init
+mcp-context-proxy --init
 ```
 
 2. Edit `mcpcp.config.json` to configure your upstream servers and compression model:
@@ -82,7 +86,7 @@ node dist/cli.js --init
 
 3. Run the proxy:
 ```bash
-node dist/cli.js
+mcp-context-proxy
 ```
 
 ## Configuration
@@ -179,34 +183,39 @@ These instructions are appended to the compression prompt, allowing you to custo
 | `ttlSeconds` | `number` | Cache entry TTL |
 | `maxEntries` | `number` | Maximum cache entries |
 
-### Tools
+### Tool Configuration
 
-Configure tool visibility to reduce context pollution:
+Configure individual tools within each upstream's `tools` object. Each key is the tool's original name (not namespaced):
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `hidden` | `string[]` | Tool patterns to hide from clients |
+| `hidden` | `boolean` | Hide this tool from clients (default: false) |
+| `compression` | `object` | Per-tool compression policy overrides |
+| `masking` | `object` | Per-tool PII masking policy overrides |
+| `overwriteDescription` | `string` | Replace the tool's description |
 
 #### Hiding Tools
 
-Many MCP servers expose tools you may not want cluttering your context. Hide them:
+Many MCP servers expose tools you may not want cluttering your context. Hide them by setting `hidden: true`:
 
 ```json
 {
-  "tools": {
-    "hidden": [
-      "github__*",
-      "server__dangerous_tool",
-      "*__internal_*"
-    ]
-  }
+  "upstreams": [
+    {
+      "id": "github",
+      "name": "GitHub",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "tools": {
+        "create_issue": { "hidden": true },
+        "delete_repository": { "hidden": true },
+        "push_files": { "hidden": true }
+      }
+    }
+  ]
 }
 ```
-
-Patterns support `*` as wildcard:
-- `"github__*"` - Hide all tools from the `github` upstream
-- `"*__execute"` - Hide any tool named `execute` from any upstream
-- `"server__debug_*"` - Hide tools starting with `debug_` from `server`
 
 Hidden tools are:
 - Not listed in `tools/list` responses
@@ -237,9 +246,9 @@ You can override tool descriptions to better guide client LLM behavior without m
 
 The override completely replaces the upstream tool's description. If goal-aware compression is enabled, the `_mcpcp_goal` instruction is appended to your custom description.
 
-### PII Masking
+### PII Masking (EXPERIMENTAL, STILL WORK IN PROGRESS!!)
 
-Protect sensitive data from being sent to upstream MCP servers. PII is masked before forwarding to upstreams and restored before returning to the client.
+Attempts to protect sensitive data from being sent to upstream MCP servers. Data is masked before forwarding to upstreams and restored before returning to the client.
 
 ```
 Client sends:    email=alice@example.com
@@ -257,8 +266,9 @@ Client receives: original values restored
 |-------|------|-------------|
 | `enabled` | `boolean` | Enable/disable PII masking globally (default: false) |
 | `defaultPolicy` | `object` | Default masking policy for all tools |
-| `toolPolicies` | `object` | Per-tool policy overrides |
 | `llmConfig` | `object` | Optional LLM config for fallback detection |
+
+Per-tool masking overrides are configured in each upstream's `tools` object (see [Tool Configuration](#tool-configuration)).
 
 #### Masking Policy
 
@@ -272,21 +282,49 @@ Client receives: original values restored
 
 #### Supported PII Types
 
-| Type | Placeholder | Example |
-|------|-------------|---------|
-| `email` | `[EMAIL_1]` | `user@example.com` |
-| `ssn` | `[SSN_1]` | `123-45-6789` |
-| `phone` | `[PHONE_1]` | `555-123-4567` |
-| `credit_card` | `[CREDIT_CARD_1]` | `4111111111111111` |
-| `ip_address` | `[IP_1]` | `192.168.1.100` |
-| `date_of_birth` | `[DOB_1]` | `01/15/1990` |
-| `passport` | `[PASSPORT_1]` | `A12345678` |
-| `driver_license` | `[DL_1]` | `D1234567` |
+| Type | Placeholder | Confidence | Example |
+|------|-------------|------------|---------|
+| `email` | `[EMAIL_REDACTED]` | high | `user@example.com` |
+| `ssn` | `[SSN_REDACTED]` | medium | `123-45-6789` |
+| `phone` | `[PHONE_REDACTED]` | medium | `555-123-4567` |
+| `credit_card` | `[CREDIT_CARD_REDACTED]` | high | `4111111111111111` |
+| `ip_address` | `[IP_REDACTED]` | high | `192.168.1.100` |
+| `date_of_birth` | `[DOB_REDACTED]` | high | `01/15/1990` (only with DOB/birth keywords) |
+| `passport` | `[PASSPORT_REDACTED]` | low | `A12345678` |
+| `driver_license` | `[DL_REDACTED]` | low | `D1234567` |
+
+**Note:** Low-confidence patterns (passport, driver_license) may produce false positives. Consider using `llmFallback: true` for these.
 
 #### Example Configuration
 
 ```json
 {
+  "upstreams": [
+    {
+      "id": "database",
+      "name": "Database Server",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "mcp-server-database"],
+      "tools": {
+        "query": {
+          "masking": {
+            "enabled": true,
+            "llmFallback": true,
+            "customPatterns": {
+              "employee_id": {
+                "regex": "EMP[0-9]{6}",
+                "replacement": "[EMPLOYEE_ID_REDACTED]"
+              }
+            }
+          }
+        },
+        "internal_tool": {
+          "masking": { "enabled": false }
+        }
+      }
+    }
+  ],
   "masking": {
     "enabled": true,
     "defaultPolicy": {
@@ -294,20 +332,6 @@ Client receives: original values restored
       "piiTypes": ["email", "ssn", "phone", "credit_card", "ip_address"],
       "llmFallback": false,
       "llmFallbackThreshold": "low"
-    },
-    "toolPolicies": {
-      "my-server__internal_tool": {
-        "enabled": false
-      },
-      "database__query": {
-        "llmFallback": true,
-        "customPatterns": {
-          "employee_id": {
-            "regex": "EMP[0-9]{6}",
-            "replacement": "[EMPLOYEE_ID_REDACTED]"
-          }
-        }
-      }
     },
     "llmConfig": {
       "baseUrl": "http://localhost:8080/v1",
@@ -332,16 +356,6 @@ mcp-context-proxy auto-detects content type and applies the appropriate strategy
 | `code` | Function definitions, imports, class syntax | Preserves signatures, summarizes implementation |
 | `json` | Valid JSON | Preserves structure, shortens values |
 | `default` | Everything else | General text compression |
-
-## Development
-
-```bash
-npm run dev          # Development mode with hot reload
-npm run build        # Production build
-npm run typecheck    # Type checking
-npm run lint         # Linting
-npm run test         # Run tests
-```
 
 ## Requirements
 
