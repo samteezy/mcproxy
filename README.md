@@ -4,6 +4,8 @@
 
 A transparent MCP (Model Context Protocol) proxy that compresses large tool responses using an external LLM before passing them to resource-constrained local models.
 
+> **This project is meant for personal use, and no guarantees are made for mission critical production environments... or whatever your environment is. Yeah, it's vibe coded. Trust it as much as you'd trust any other random code you find on the web.**
+
 ## Why CLIP?
 
 When running local LLMs on limited VRAM, large context windows from MCP tool responses can overwhelm your model. CLIP sits between your MCP client and upstream MCP servers, automatically compressing responses that exceed a token threshold.
