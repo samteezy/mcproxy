@@ -163,7 +163,7 @@ export class Aggregator {
   }
 
   /**
-   * Inject _mcproxy_goal field into tool schema if goal-aware is enabled
+   * Inject _mcpcp_goal field into tool schema if goal-aware is enabled
    */
   private injectGoalField(tool: AggregatedTool): Tool {
     if (!this.isGoalAwareEnabled(tool.name)) {
@@ -176,12 +176,12 @@ export class Aggregator {
 
     // Append instruction to description
     const goalInstruction =
-      "Use '_mcproxy_goal' to share the information you hope to learn. Will be used to refine the upstream tool's response for your specific data need.";
+      "Use '_mcpcp_goal' to share the information you hope to learn. Will be used to refine the upstream tool's response for your specific data need.";
     const description = tool.description
       ? `${tool.description} ${goalInstruction}`
       : goalInstruction;
 
-    // Add _mcproxy_goal to inputSchema.properties and required
+    // Add _mcpcp_goal to inputSchema.properties and required
     const existingSchema = tool.inputSchema;
     const existingProperties = existingSchema.properties || {};
     const existingRequired = (existingSchema.required as string[]) || [];
@@ -190,13 +190,13 @@ export class Aggregator {
       ...existingSchema,
       properties: {
         ...existingProperties,
-        _mcproxy_goal: {
+        _mcpcp_goal: {
           type: "string" as const,
           description:
             "Specific search term of what you're looking for (e.g., 'the authentication API endpoint', 'references to Ulysses S. Grant').",
         },
       },
-      required: [...existingRequired, "_mcproxy_goal"],
+      required: [...existingRequired, "_mcpcp_goal"],
     };
 
     return { name: tool.name, description, inputSchema };

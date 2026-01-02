@@ -1,12 +1,12 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { configSchema } from "./schema.js";
-import type { MCProxyConfig } from "../types.js";
+import type { MCPCPConfig } from "../types.js";
 
 /**
  * Load and validate configuration from a JSON file
  */
-export function loadConfig(configPath: string): MCProxyConfig {
+export function loadConfig(configPath: string): MCPCPConfig {
   const absolutePath = resolve(configPath);
 
   if (!existsSync(absolutePath)) {
@@ -33,13 +33,13 @@ export function loadConfig(configPath: string): MCProxyConfig {
     throw new Error(`Configuration validation failed:\n${errors}`);
   }
 
-  return result.data as MCProxyConfig;
+  return result.data as MCPCPConfig;
 }
 
 /**
  * Generate an example configuration
  */
-export function generateExampleConfig(): MCProxyConfig {
+export function generateExampleConfig(): MCPCPConfig {
   return {
     downstream: {
       transport: "stdio",

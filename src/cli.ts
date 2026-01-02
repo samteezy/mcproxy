@@ -10,7 +10,7 @@ const { values, positionals } = parseArgs({
     config: {
       type: "string",
       short: "c",
-      default: "mcproxy.config.json",
+      default: "mcpcp.config.json",
     },
     init: {
       type: "boolean",
@@ -26,34 +26,34 @@ const { values, positionals } = parseArgs({
 
 function printHelp(): void {
   console.log(`
-mcproxy - MCP Context Proxy
+mcp-context-proxy - MCP Context Proxy
 
 A transparent MCP proxy with response compression.
 
 Usage:
-  mcproxy [options]
-  mcproxy --init              Generate example config file
+  mcp-context-proxy [options]
+  mcp-context-proxy --init              Generate example config file
 
 Options:
-  -c, --config <path>  Path to configuration file (default: mcproxy.config.json)
+  -c, --config <path>  Path to configuration file (default: mcpcp.config.json)
   --init               Generate an example configuration file
   -h, --help           Show this help message
 
 Configuration:
-  mcproxy reads its configuration from a JSON file. Use --init to generate
+  mcp-context-proxy reads its configuration from a JSON file. Use --init to generate
   an example configuration file that you can customize.
 
 Example:
   # Generate example config
-  mcproxy --init
+  mcp-context-proxy --init
 
   # Start proxy with default config
-  mcproxy
+  mcp-context-proxy
 
   # Start proxy with custom config
-  mcproxy -c /path/to/config.json
+  mcp-context-proxy -c /path/to/config.json
 
-For more information, see: https://github.com/samteezy/mcproxy
+For more information, see: https://github.com/samteezy/mcp-context-proxy
 `);
 }
 
@@ -64,7 +64,7 @@ async function main(): Promise<void> {
   }
 
   if (values.init) {
-    const configPath = positionals[0] || "mcproxy.config.json";
+    const configPath = positionals[0] || "mcpcp.config.json";
     const exampleConfig = generateExampleConfig();
     writeFileSync(configPath, JSON.stringify(exampleConfig, null, 2));
     console.log(`Generated example configuration: ${configPath}`);
@@ -79,7 +79,7 @@ async function main(): Promise<void> {
     config = loadConfig(configPath);
   } catch (error) {
     console.error(`Error loading configuration: ${error instanceof Error ? error.message : error}`);
-    console.error(`\nRun 'mcproxy --init' to generate an example configuration.`);
+    console.error(`\nRun 'mcp-context-proxy --init' to generate an example configuration.`);
     process.exit(1);
   }
 

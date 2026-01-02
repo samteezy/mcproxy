@@ -1,20 +1,20 @@
 {
   "name": "mcp-context-proxy",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP Context Proxy - Transparent MCP proxy that helps with large tool responses for resource-constrained local models",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "mcproxy": "dist/cli.js"
+    "mcp-context-proxy": "dist/cli.js"
   },
   "author": "Sam Taylor",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/samteezy/mcproxy.git"
+    "url": "git+https://github.com/samteezy/mcp-context-proxy.git"
   },
-  "homepage": "https://github.com/samteezy/mcproxy#readme",
+  "homepage": "https://github.com/samteezy/mcp-context-proxy#readme",
   "bugs": {
-    "url": "https://github.com/samteezy/mcproxy/issues"
+    "url": "https://github.com/samteezy/mcp-context-proxy/issues"
   },
   "files": [
     "dist",

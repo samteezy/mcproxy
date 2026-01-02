@@ -17,7 +17,7 @@ export default defineConfig([
   {
     entry: { "editor-bundle": "src/web/editor-bundle.ts" },
     format: ["iife"],
-    globalName: "mcproxyEditor",
+    globalName: "mcpcpEditor",
     outDir: "dist/web",
     minify: true,
     sourcemap: false,

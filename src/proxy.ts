@@ -1,5 +1,5 @@
 import express from "express";
-import type { MCProxyConfig, UpstreamStatus } from "./types.js";
+import type { MCPCPConfig, UpstreamStatus } from "./types.js";
 import { UpstreamClient, DownstreamServer, Aggregator, Router } from "./mcp/index.js";
 import { Compressor } from "./compression/index.js";
 import { Masker } from "./masking/index.js";
@@ -8,20 +8,20 @@ import { ToolConfigResolver, loadConfig } from "./config/index.js";
 import { initLogger, getLogger } from "./logger.js";
 import { generateHtml, registerApiRoutes } from "./web/index.js";
 
-export interface MCProxy {
+export interface MCPCP {
   start(): Promise<void>;
   stop(): Promise<void>;
   getStatus(): UpstreamStatus[];
-  reload(newConfig: MCProxyConfig): Promise<void>;
+  reload(newConfig: MCPCPConfig): Promise<void>;
   getConfigPath(): string;
 }
 
 /**
- * Create and configure the MCProxy
+ * Create and configure the MCPCP proxy
  */
-export async function createProxy(config: MCProxyConfig, configPath: string): Promise<MCProxy> {
+export async function createProxy(config: MCPCPConfig, configPath: string): Promise<MCPCP> {
   const logger = initLogger(config.logLevel);
-  logger.info("Initializing MCProxy");
+  logger.info("Initializing MCPCP");
 
   // Mutable state for hot reload
   let currentConfig = config;
@@ -91,7 +91,7 @@ export async function createProxy(config: MCProxyConfig, configPath: string): Pr
   /**
    * Hot reload configuration without restarting the HTTP server
    */
-  async function reload(newConfig: MCProxyConfig): Promise<void> {
+  async function reload(newConfig: MCPCPConfig): Promise<void> {
     const log = getLogger();
     log.info("Reloading configuration...");
 
@@ -166,7 +166,7 @@ export async function createProxy(config: MCProxyConfig, configPath: string): Pr
   }
 
   async function start(): Promise<void> {
-    logger.info("Starting MCProxy...");
+    logger.info("Starting MCPCP...");
 
     // Connect to all upstreams
     const connectionResults = await Promise.allSettled(
@@ -245,7 +245,7 @@ export async function createProxy(config: MCProxyConfig, configPath: string): Pr
       const host = currentConfig.downstream.host || "0.0.0.0";
 
       httpServer = expressApp.listen(port, host, () => {
-        logger.info(`MCProxy listening on ${host}:${port}`);
+        logger.info(`MCPCP listening on ${host}:${port}`);
         logger.info(`Admin UI available at http://${host === "0.0.0.0" ? "localhost" : host}:${port}/`);
       });
     }
@@ -255,11 +255,11 @@ export async function createProxy(config: MCProxyConfig, configPath: string): Pr
       cache.cleanup();
     }, 60000); // Cleanup every minute
 
-    logger.info("MCProxy started successfully");
+    logger.info("MCPCP started successfully");
   }
 
   async function stop(): Promise<void> {
-    logger.info("Stopping MCProxy...");
+    logger.info("Stopping MCPCP...");
 
     // Clear cache cleanup interval
     if (cacheCleanupInterval) {
@@ -288,7 +288,7 @@ export async function createProxy(config: MCProxyConfig, configPath: string): Pr
     // Clear cache
     cache.clear();
 
-    logger.info("MCProxy stopped");
+    logger.info("MCPCP stopped");
   }
 
   return {

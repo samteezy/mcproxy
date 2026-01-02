@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync, renameSync } from "fs";
 import { configSchema } from "../config/schema.js";
 import { getStreamingTransport } from "../logger.js";
 import type {
-  MCProxyConfig,
+  MCPCPConfig,
   UpstreamStatus,
   AggregatedTool,
   AggregatedResource,
@@ -23,8 +23,8 @@ export interface ApiContext {
   configPath: string;
   getStatus: () => UpstreamStatus[];
   getUpstreamDetails: (upstreamId: string) => UpstreamDetails;
-  reload: (config: MCProxyConfig) => Promise<void>;
-  loadConfig: (path: string) => MCProxyConfig;
+  reload: (config: MCPCPConfig) => Promise<void>;
+  loadConfig: (path: string) => MCPCPConfig;
 }
 
 /**

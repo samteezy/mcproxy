@@ -1,11 +1,11 @@
 // Main exports for programmatic usage
 export { createProxy } from "./proxy.js";
-export type { MCProxy } from "./proxy.js";
+export type { MCPCP } from "./proxy.js";
 
 // Configuration
 export { loadConfig, generateExampleConfig } from "./config/index.js";
 export type {
-  MCProxyConfig,
+  MCPCPConfig,
   UpstreamServerConfig,
   DownstreamConfig,
   CompressionConfig,
