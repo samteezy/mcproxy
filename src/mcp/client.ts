@@ -26,7 +26,7 @@ export class UpstreamClient {
   constructor(config: UpstreamServerConfig) {
     this.config = config;
     this.client = new Client({
-      name: "clip-proxy",
+      name: "mcproxy-proxy",
       version: "0.1.0",
     });
   }

@@ -4,5 +4,5 @@ dist
 *.tsbuildinfo
 .DS_Store
 coverage
-clip.config.json
+mcproxy.config.json
 todo.md

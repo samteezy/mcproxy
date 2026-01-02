@@ -164,7 +164,7 @@ export interface CompressionPolicy {
   tokenThreshold?: number;
   /** Maximum tokens for compressed output */
   maxOutputTokens?: number;
-  /** Whether to add _clip_goal field for context-aware compression */
+  /** Whether to add _mcproxy_goal field for context-aware compression */
   goalAware?: boolean;
   /** Custom instructions to guide the LLM during compression */
   customInstructions?: string;
@@ -182,7 +182,7 @@ export interface CompressionConfig {
   model: string;
   /** Default policy applied to all tools */
   defaultPolicy: CompressionPolicy & { enabled: boolean; tokenThreshold: number };
-  /** Enable goal-aware compression globally (adds _clip_goal to tool schemas). Default: true */
+  /** Enable goal-aware compression globally (adds _mcproxy_goal to tool schemas). Default: true */
   goalAware?: boolean;
 }
 
@@ -222,9 +222,9 @@ export interface CacheConfig {
 }
 
 /**
- * Main CLIP configuration
+ * Main MCProxy configuration
  */
-export interface CLIPConfig {
+export interface MCProxyConfig {
   /** Downstream server configuration */
   downstream: DownstreamConfig;
   /** Upstream server configurations */

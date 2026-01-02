@@ -1,0 +1,85 @@
+{
+  "downstream": {
+    "transport": "streamable-http",
+    "port": 3000,
+    "host": "0.0.0.0"
+  },
+  "upstreams": [
+    {
+      "id": "context7",
+      "name": "Context7",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp",
+        "--api-key",
+        "ctx7sk-840e540e-7cf9-48a9-99f8-e89f55ba8360"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "fetch",
+      "name": "Fetch",
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "mcp-server-fetch"
+      ],
+      "enabled": true,
+      "tools": {
+        "fetch": {
+          "compression": {
+            "tokenThreshold": 2000,
+            "maxOutputTokens": 2000,
+            "customInstructions": "When possible, quote relevant sections of the input text verbatim."
+          },
+          "overwriteDescription": "Fetches the contents of a URL. Use this only when the user has provided a specific URL in their message."
+        }
+      }
+    },
+    {
+      "id": "searchxng",
+      "name": "searchxng",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-searxng"
+      ],
+      "env": {
+        "SEARXNG_URL": "http://10.10.3.175:8888/"
+      },
+      "enabled": true
+    }
+  ],
+  "compression": {
+    "baseUrl": "http://10.10.3.197:8080/v1",
+    "model": "Qwen3-0.6B",
+    "defaultPolicy": {
+      "enabled": true,
+      "tokenThreshold": 2000,
+      "maxOutputTokens": 1000
+    }
+  },
+  "cache": {
+    "enabled": true,
+    "ttlSeconds": 300,
+    "maxEntries": 1000
+  },
+  "masking": {
+    "enabled": true,
+    "defaultPolicy": {
+      "enabled": true,
+      "piiTypes": [
+        "email",
+        "ssn",
+        "phone",
+        "credit_card",
+        "ip_address"
+      ],
+      "llmFallback": true
+    }
+  },
+  "logLevel": "debug"
+}

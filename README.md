@@ -1,28 +1,28 @@
-# CLIP
+# mcproxy
 
-**CLIP Lightens Inference Processing**
+**mcproxy Lightens Inference Processing**
 
 A transparent MCP (Model Context Protocol) proxy that compresses large tool responses using an external LLM before passing them to resource-constrained local models.
 
 > **This project is meant for personal use, and no guarantees are made for mission critical production environments... or whatever your environment is. Yeah, it's vibe coded. Trust it as much as you'd trust any other random code you find on the web.**
 
-## Why CLIP?
+## Why mcproxy?
 
 For those of us running LLMs locally, especially at home, context costs us time, not just tokens. This project was borne out of frustration with MCPs that are little more than "API wrappers" and would respond with often much more information than I needed, eating up valuable context and taking up time while I waited for the prompt processing to complete.
 
 I wanted to see how a tiny LLM/SLM could help compress MCP outputs before responding back to the client LLM. That worked, and then I started adding in more functionality to make this a helpful little Swiss Army Knife for enthusiasts like myself... but like a really tiny Swiss Army Knife, not one of those obscene behemoths.
 
-## How do I use CLIP?
+## How do I use mcproxy?
 
-Let's say you're running Llama.cpp locally with something like `gpt-oss-120b`. You have the usual `fetch` and maybe `searxng` MCPs set up doing some basic web search and URL retrieval. But processing those pages is taking forever and adding useless context. So you allocate a little VRAM, or even regular RAM, to `Qwen3-0.6B` or `LFM2-1.2B` and set up CLIP as the proxy for those MCPs. Now if the token count passes a certain threshold, your small model performs an extraction/summary against the content and returns *that* back to your larger model, saving time.
+Let's say you're running Llama.cpp locally with something like `gpt-oss-120b`. You have the usual `fetch` and maybe `searxng` MCPs set up doing some basic web search and URL retrieval. But processing those pages is taking forever and adding useless context. So you allocate a little VRAM, or even regular RAM, to `Qwen3-0.6B` or `LFM2-1.2B` and set up mcproxy as the proxy for those MCPs. Now if the token count passes a certain threshold, your small model performs an extraction/summary against the content and returns *that* back to your larger model, saving time.
 
 I realized that an alternative to running a small LLM locally could also be "offshoring" compression of certain MCP responses to zero-cost or low cost cloud models. Perhaps you want to do as much as you can locally, but don't mind having a cloud model read public web pages that searxng finds. You could have you local model hand that off to a cloud model to compress and then give you back what you need to know from that page, without compromising privacy. To that end, I'm also experimenting with adding some PII-preserving functions with combinations of regex and LLM.
 
-Maybe you're not using `sammcj/mcp-devtools` (you should) or there's a MCP that helps solve a very specific need, but you don't need most of the tools it offers. So every time your LLM runs, you're burning initial tokens with those extra tool references. Rather than reinventing the upstream MCP, you can use CLIP to disable those tools, so your client LLM never sees them in the first place, increasing performance and saving time.
+Maybe you're not using `sammcj/mcp-devtools` (you should) or there's a MCP that helps solve a very specific need, but you don't need most of the tools it offers. So every time your LLM runs, you're burning initial tokens with those extra tool references. Rather than reinventing the upstream MCP, you can use mcproxy to disable those tools, so your client LLM never sees them in the first place, increasing performance and saving time.
 ```
 MCP Client (Claude Desktop, Cursor, etc.)
     ↓
-CLIP Proxy
+mcproxy Proxy
     ↓ ←── Compression Model (OpenAI-compatible)
 Upstream MCP Server(s)
 ```
@@ -53,7 +53,7 @@ npm run build
 node dist/cli.js --init
 ```
 
-2. Edit `clip.config.json` to configure your upstream servers and compression model:
+2. Edit `mcproxy.config.json` to configure your upstream servers and compression model:
 ```json
 {
   "downstream": {
@@ -235,7 +235,7 @@ You can override tool descriptions to better guide client LLM behavior without m
 }
 ```
 
-The override completely replaces the upstream tool's description. If goal-aware compression is enabled, the `_clip_goal` instruction is appended to your custom description.
+The override completely replaces the upstream tool's description. If goal-aware compression is enabled, the `_mcproxy_goal` instruction is appended to your custom description.
 
 ### PII Masking
 
@@ -325,7 +325,7 @@ Tools from upstream servers are namespaced to avoid conflicts:
 
 ## Compression Strategies
 
-CLIP auto-detects content type and applies the appropriate strategy:
+mcproxy auto-detects content type and applies the appropriate strategy:
 
 | Strategy | Trigger | Behavior |
 |----------|---------|----------|

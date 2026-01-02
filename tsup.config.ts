@@ -17,7 +17,7 @@ export default defineConfig([
   {
     entry: { "editor-bundle": "src/web/editor-bundle.ts" },
     format: ["iife"],
-    globalName: "ClipEditor",
+    globalName: "mcproxyEditor",
     outDir: "dist/web",
     minify: true,
     sourcemap: false,

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CLIP (CLIP Lightens Inference Processing) is a transparent MCP proxy that intercepts tool responses from upstream MCP servers and compresses large responses using an external LLM before passing them to resource-constrained local models.
+mcproxy (mcproxy Lightens Inference Processing) is a transparent MCP proxy that intercepts tool responses from upstream MCP servers and compresses large responses using an external LLM before passing them to resource-constrained local models.
 
 ## Build & Development Commands
 
@@ -21,12 +21,12 @@ npm run typecheck    # TypeScript type checking
 ## Architecture
 
 ```
-MCP Client → CLIP (Proxy) → MCP Server(s)
+MCP Client → mcproxy (Proxy) → MCP Server(s)
                  ↓
          Compression Model (OpenAI-compatible)
 ```
 
-CLIP acts as a man-in-the-middle:
+mcproxy acts as a man-in-the-middle:
 - **Downstream:** Exposes MCP server interface to clients (Claude Desktop, Cursor, etc.)
 - **Upstream:** Connects as MCP client to one or more actual MCP servers
 - **Compression:** Intercepts tool responses exceeding token threshold and compresses via external LLM
@@ -43,7 +43,7 @@ CLIP acts as a man-in-the-middle:
 
 ### Transport Support
 
-CLIP supports stdio, SSE, and Streamable HTTP for both downstream (as server) and upstream (as client) connections.
+mcproxy supports stdio, SSE, and Streamable HTTP for both downstream (as server) and upstream (as client) connections.
 
 ### Compression Strategies
 
@@ -89,7 +89,7 @@ curl -s -X POST http://127.0.0.1:3000/mcp \
 curl -s -X POST http://127.0.0.1:3000/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"fetch__fetch","arguments":{"url":"https://example.com","max_length":50000,"_clip_goal":"Finding specific information about X"}}}' | jq
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"fetch__fetch","arguments":{"url":"https://example.com","max_length":50000,"_mcproxy_goal":"Finding specific information about X"}}}' | jq
 ```
 
 **Test with large content (llama-server README):**
@@ -97,18 +97,18 @@ curl -s -X POST http://127.0.0.1:3000/mcp \
 curl -s -X POST http://127.0.0.1:3000/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"fetch__fetch","arguments":{"url":"https://raw.githubusercontent.com/ggml-org/llama.cpp/refs/heads/master/tools/server/README.md","max_length":50000,"_clip_goal":"Finding the API endpoints for chat completions"}}}' | jq
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"fetch__fetch","arguments":{"url":"https://raw.githubusercontent.com/ggml-org/llama.cpp/refs/heads/master/tools/server/README.md","max_length":50000,"_mcproxy_goal":"Finding the API endpoints for chat completions"}}}' | jq
 ```
 
 ### Goal-Aware Compression
 
-The `_clip_goal` field is automatically injected into all tool schemas when `goalAware` is enabled (default: true). When provided:
+The `_mcproxy_goal` field is automatically injected into all tool schemas when `goalAware` is enabled (default: true). When provided:
 - The goal is stripped before forwarding to upstream MCP servers
 - The goal is included in the compression prompt to focus on relevant information
 - Example: 14,246 tokens → 283 tokens (98% reduction) with targeted goal
 
 ## References
-- Project repo: github.com/samteezy/clip
+- Project repo: github.com/samteezy/mcproxy
 - MCPO: https://github.com/open-webui/mcpo/tree/main
 - MCP SDK: https://github.com/modelcontextprotocol/typescript-sdk
 - Vercel SDK: https://ai-sdk.dev/docs/getting-started/nodejs

@@ -44,7 +44,7 @@ export class DownstreamServer {
     this.compressor = options.compressor;
 
     this.server = new Server(
-      { name: "clip-proxy", version: "0.1.0" },
+      { name: "mcproxy-proxy", version: "0.1.0" },
       {
         capabilities: {
           tools: { listChanged: true },

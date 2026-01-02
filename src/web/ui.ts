@@ -15,7 +15,7 @@ export function generateHtml(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CLIP Admin</title>
+  <title>mcproxy Admin</title>
   <style>
     * {
       box-sizing: border-box;
@@ -477,9 +477,9 @@ export function generateHtml(): string {
   </style>
 </head>
 <body>
-  <div x-data="clipAdmin()" x-init="init()">
+  <div x-data="mcproxyAdmin()" x-init="init()">
     <header>
-      <h1>CLIP Admin</h1>
+      <h1>mcproxy Admin</h1>
       <div class="status-indicator">
         <div class="status-dot" :class="{ disconnected: !connected }"></div>
         <span x-text="connected ? 'Connected' : 'Disconnected'"></span>
@@ -669,7 +669,7 @@ export function generateHtml(): string {
   <!-- Define Alpine component before Alpine loads -->
   <script>
     document.addEventListener('alpine:init', () => {
-      Alpine.data('clipAdmin', () => ({
+      Alpine.data('mcproxyAdmin', () => ({
         // State
         tab: 'config',
         connected: true,

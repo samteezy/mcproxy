@@ -10,7 +10,7 @@ const { values, positionals } = parseArgs({
     config: {
       type: "string",
       short: "c",
-      default: "clip.config.json",
+      default: "mcproxy.config.json",
     },
     init: {
       type: "boolean",
@@ -26,34 +26,34 @@ const { values, positionals } = parseArgs({
 
 function printHelp(): void {
   console.log(`
-CLIP - CLIP Lightens Inference Processing
+mcproxy - MCP Context Proxy
 
 A transparent MCP proxy with response compression.
 
 Usage:
-  clip [options]
-  clip --init              Generate example config file
+  mcproxy [options]
+  mcproxy --init              Generate example config file
 
 Options:
-  -c, --config <path>  Path to configuration file (default: clip.config.json)
+  -c, --config <path>  Path to configuration file (default: mcproxy.config.json)
   --init               Generate an example configuration file
   -h, --help           Show this help message
 
 Configuration:
-  CLIP reads its configuration from a JSON file. Use --init to generate
+  mcproxy reads its configuration from a JSON file. Use --init to generate
   an example configuration file that you can customize.
 
 Example:
   # Generate example config
-  clip --init
+  mcproxy --init
 
   # Start proxy with default config
-  clip
+  mcproxy
 
   # Start proxy with custom config
-  clip -c /path/to/config.json
+  mcproxy -c /path/to/config.json
 
-For more information, see: https://github.com/samteezy/clip
+For more information, see: https://github.com/samteezy/mcproxy
 `);
 }
 
@@ -64,7 +64,7 @@ async function main(): Promise<void> {
   }
 
   if (values.init) {
-    const configPath = positionals[0] || "clip.config.json";
+    const configPath = positionals[0] || "mcproxy.config.json";
     const exampleConfig = generateExampleConfig();
     writeFileSync(configPath, JSON.stringify(exampleConfig, null, 2));
     console.log(`Generated example configuration: ${configPath}`);
@@ -79,7 +79,7 @@ async function main(): Promise<void> {
     config = loadConfig(configPath);
   } catch (error) {
     console.error(`Error loading configuration: ${error instanceof Error ? error.message : error}`);
-    console.error(`\nRun 'clip --init' to generate an example configuration.`);
+    console.error(`\nRun 'mcproxy --init' to generate an example configuration.`);
     process.exit(1);
   }
 

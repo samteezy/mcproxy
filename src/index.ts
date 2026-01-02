@@ -1,11 +1,11 @@
 // Main exports for programmatic usage
 export { createProxy } from "./proxy.js";
-export type { CLIPProxy } from "./proxy.js";
+export type { mcproxyProxy } from "./proxy.js";
 
 // Configuration
 export { loadConfig, generateExampleConfig } from "./config/index.js";
 export type {
-  CLIPConfig,
+  mcproxyConfig,
   UpstreamServerConfig,
   DownstreamConfig,
   CompressionConfig,

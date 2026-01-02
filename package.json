@@ -1,12 +1,26 @@
 {
-  "name": "clip",
+  "name": "mcproxy",
   "version": "0.1.0",
-  "description": "CLIP Lightens Inference Processing - Transparent MCP proxy that compresses large tool responses for resource-constrained local models",
+  "description": "MCP Context Proxy - Transparent MCP proxy that compresses large tool responses for resource-constrained local models",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "clip": "dist/cli.js"
+    "mcproxy": "dist/cli.js"
   },
+  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samteezy/mcproxy.git"
+  },
+  "homepage": "https://github.com/samteezy/mcproxy#readme",
+  "bugs": {
+    "url": "https://github.com/samteezy/mcproxy/issues"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "tsx watch src/cli.ts",
     "build": "tsup",

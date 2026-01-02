@@ -1,5 +1,5 @@
 import express from "express";
-import type { CLIPConfig, UpstreamStatus } from "./types.js";
+import type { MCProxyConfig, UpstreamStatus } from "./types.js";
 import { UpstreamClient, DownstreamServer, Aggregator, Router } from "./mcp/index.js";
 import { Compressor } from "./compression/index.js";
 import { Masker } from "./masking/index.js";
@@ -8,20 +8,20 @@ import { ToolConfigResolver, loadConfig } from "./config/index.js";
 import { initLogger, getLogger } from "./logger.js";
 import { generateHtml, registerApiRoutes } from "./web/index.js";
 
-export interface CLIPProxy {
+export interface MCProxy {
   start(): Promise<void>;
   stop(): Promise<void>;
   getStatus(): UpstreamStatus[];
-  reload(newConfig: CLIPConfig): Promise<void>;
+  reload(newConfig: MCProxyConfig): Promise<void>;
   getConfigPath(): string;
 }
 
 /**
- * Create and configure the CLIP proxy
+ * Create and configure the MCProxy
  */
-export async function createProxy(config: CLIPConfig, configPath: string): Promise<CLIPProxy> {
+export async function createProxy(config: MCProxyConfig, configPath: string): Promise<MCProxy> {
   const logger = initLogger(config.logLevel);
-  logger.info("Initializing CLIP proxy");
+  logger.info("Initializing MCProxy");
 
   // Mutable state for hot reload
   let currentConfig = config;
@@ -91,7 +91,7 @@ export async function createProxy(config: CLIPConfig, configPath: string): Promi
   /**
    * Hot reload configuration without restarting the HTTP server
    */
-  async function reload(newConfig: CLIPConfig): Promise<void> {
+  async function reload(newConfig: MCProxyConfig): Promise<void> {
     const log = getLogger();
     log.info("Reloading configuration...");
 
@@ -166,7 +166,7 @@ export async function createProxy(config: CLIPConfig, configPath: string): Promi
   }
 
   async function start(): Promise<void> {
-    logger.info("Starting CLIP proxy...");
+    logger.info("Starting MCProxy...");
 
     // Connect to all upstreams
     const connectionResults = await Promise.allSettled(
@@ -245,7 +245,7 @@ export async function createProxy(config: CLIPConfig, configPath: string): Promi
       const host = currentConfig.downstream.host || "0.0.0.0";
 
       httpServer = expressApp.listen(port, host, () => {
-        logger.info(`CLIP proxy listening on ${host}:${port}`);
+        logger.info(`MCProxy listening on ${host}:${port}`);
         logger.info(`Admin UI available at http://${host === "0.0.0.0" ? "localhost" : host}:${port}/`);
       });
     }
@@ -255,11 +255,11 @@ export async function createProxy(config: CLIPConfig, configPath: string): Promi
       cache.cleanup();
     }, 60000); // Cleanup every minute
 
-    logger.info("CLIP proxy started successfully");
+    logger.info("MCProxy started successfully");
   }
 
   async function stop(): Promise<void> {
-    logger.info("Stopping CLIP proxy...");
+    logger.info("Stopping MCProxy...");
 
     // Clear cache cleanup interval
     if (cacheCleanupInterval) {
@@ -288,7 +288,7 @@ export async function createProxy(config: CLIPConfig, configPath: string): Promi
     // Clear cache
     cache.clear();
 
-    logger.info("CLIP proxy stopped");
+    logger.info("MCProxy stopped");
   }
 
   return {

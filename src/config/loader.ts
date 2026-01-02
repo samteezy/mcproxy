@@ -1,12 +1,12 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { configSchema } from "./schema.js";
-import type { CLIPConfig } from "../types.js";
+import type { mcproxyConfig } from "../types.js";
 
 /**
  * Load and validate configuration from a JSON file
  */
-export function loadConfig(configPath: string): CLIPConfig {
+export function loadConfig(configPath: string): mcproxyConfig {
   const absolutePath = resolve(configPath);
 
   if (!existsSync(absolutePath)) {
@@ -33,13 +33,13 @@ export function loadConfig(configPath: string): CLIPConfig {
     throw new Error(`Configuration validation failed:\n${errors}`);
   }
 
-  return result.data as CLIPConfig;
+  return result.data as mcproxyConfig;
 }
 
 /**
  * Generate an example configuration
  */
-export function generateExampleConfig(): CLIPConfig {
+export function generateExampleConfig(): mcproxyConfig {
   return {
     downstream: {
       transport: "stdio",
