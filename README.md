@@ -205,6 +205,8 @@ The dashboard uses these API endpoints, which are also available for programmati
 | `model` | `string` | Model identifier |
 | `defaultPolicy` | `object` | Default compression policy for all tools |
 | `goalAware` | `boolean` | Inject `_mcpcp_goal` field into tool schemas (default: true) |
+| `bypassEnabled` | `boolean` | Inject `_mcpcp_bypass` field to allow skipping compression (default: false) |
+| `retryEscalation` | `object` | Auto-increase output on repeated tool calls (see below) |
 
 #### Default Policy
 
@@ -213,6 +215,41 @@ The dashboard uses these API endpoints, which are also available for programmati
 | `enabled` | `boolean` | Enable/disable compression globally (default: true) |
 | `tokenThreshold` | `number` | Minimum tokens to trigger compression (default: 1000) |
 | `maxOutputTokens` | `number` | Maximum tokens in compressed output |
+
+#### Retry Escalation
+
+When enabled, the proxy tracks repeated calls to the same tool within a sliding window and automatically increases `maxOutputTokens` on each retry. This helps when compression removes information that the client LLM needs.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `enabled` | `boolean` | Enable retry escalation (default: true) |
+| `windowSeconds` | `number` | Sliding window to track calls (default: 60) |
+| `tokenMultiplier` | `number` | Linear multiplier per retry (default: 2) |
+
+**Behavior:** With default settings (multiplier=2):
+- 1st call: normal `maxOutputTokens`
+- 2nd call within 60s: `maxOutputTokens * 2`
+- 3rd call within 60s: `maxOutputTokens * 3`
+- After window expires: resets to 1x
+
+#### Compression Metadata
+
+All compressed responses include a metadata header prepended to the content:
+
+```
+[Compressed: 14246→283 tokens, strategy: json]
+
+{actual compressed content}
+```
+
+When escalation is applied:
+```
+[Compressed: 14246→566 tokens, strategy: json, escalation: 2x]
+```
+
+#### Bypass Field
+
+When `bypassEnabled: true`, a `_mcpcp_bypass` field is added to all tool schemas. Clients can set this to `true` to skip compression entirely and receive the full uncompressed response. This is useful when the compressed response is missing critical information.
 
 #### Per-Tool Policies
 
