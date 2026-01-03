@@ -58,6 +58,8 @@ Or run directly with npx:
 npx mcp-context-proxy --help
 ```
 
+For deployment options (PM2, Docker), see [INSTALLATION.md](./INSTALLATION.md).
+
 ## Quick Start
 
 1. Generate a config file:
