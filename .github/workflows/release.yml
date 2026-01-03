@@ -20,6 +20,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history to check branch ancestry
+
+      - name: Verify tag is on main branch
+        run: |
+          # Check if the tag's commit is reachable from main
+          if ! git merge-base --is-ancestor ${{ github.sha }} origin/main; then
+            echo "ERROR: Tag ${{ github.ref_name }} is not on the main branch"
+            echo "Please merge to main before creating a release tag"
+            exit 1
+          fi
+          echo "✓ Tag is on main branch, proceeding with release"
 
       - uses: actions/setup-node@v4
         with:
