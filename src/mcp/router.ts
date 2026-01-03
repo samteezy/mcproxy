@@ -74,6 +74,15 @@ export class Router {
     delete forwardArgs[Router.GOAL_FIELD];
     delete forwardArgs[Router.BYPASS_FIELD];
 
+    // Apply parameter overrides
+    const overrides = this.aggregator.getParameterOverrides(namespacedName);
+    if (Object.keys(overrides).length > 0) {
+      logger.debug(
+        `Applying parameter overrides for '${namespacedName}': ${Object.keys(overrides).join(", ")}`
+      );
+      forwardArgs = { ...forwardArgs, ...overrides };
+    }
+
     // Apply PII masking to arguments before forwarding
     let restorationMap: Map<string, string> | undefined;
     if (this.masker?.isEnabled()) {

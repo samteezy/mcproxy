@@ -108,6 +108,20 @@ export class ToolConfigResolver {
   }
 
   /**
+   * Get list of parameters to hide from client schema for a tool.
+   */
+  getHiddenParameters(namespacedName: string): string[] {
+    return this.getToolConfig(namespacedName)?.hideParameters ?? [];
+  }
+
+  /**
+   * Get parameter overrides to inject before forwarding to upstream.
+   */
+  getParameterOverrides(namespacedName: string): Record<string, unknown> {
+    return this.getToolConfig(namespacedName)?.parameterOverrides ?? {};
+  }
+
+  /**
    * Resolve compression policy for a tool.
    * Priority: tool-level → global default
    */

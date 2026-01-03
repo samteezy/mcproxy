@@ -130,6 +130,10 @@ export interface ToolConfig {
   overwriteDescription?: string;
   /** Cache TTL in seconds for this tool (0 = no caching, undefined = use global) */
   cacheTtl?: number;
+  /** Parameter names to hide from client schema */
+  hideParameters?: string[];
+  /** Parameter values to inject server-side before forwarding to upstream */
+  parameterOverrides?: Record<string, unknown>;
 }
 
 /**

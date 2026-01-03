@@ -30,7 +30,11 @@
             "maxOutputTokens": 200,
             "customInstructions": "Preserve all URLs, dates, and code examples verbatim."
           },
-          "overwriteDescription": "Fetches the contents of a URL. Use this only when the user has provided a specific URL in their message."
+          "overwriteDescription": "Fetches the contents of a URL. Use this only when the user has provided a specific URL in their message.",
+          "hideParameters": ["max_length"],
+          "parameterOverrides": {
+            "max_length": 50000
+          }
         }
       }
     }

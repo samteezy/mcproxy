@@ -304,6 +304,73 @@ The `customInstructions` field lets you guide the compression LLM for specific t
 
 These instructions are appended to the compression prompt, allowing you to customize what information is preserved or omitted for each tool.
 
+#### Parameter Hiding & Overrides
+
+For tools with problematic default parameters, you can hide them from the client schema and inject your own values server-side. This is particularly useful for parameters like `max_length` where LLMs can't know the optimal value before seeing the content.
+
+**Configuration:**
+
+```json
+{
+  "upstreams": [
+    {
+      "id": "fetch-server",
+      "name": "Fetch Server",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-fetch"],
+      "tools": {
+        "fetch": {
+          "hideParameters": ["max_length"],
+          "parameterOverrides": {
+            "max_length": 50000
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
+**How it works:**
+
+1. **Schema Modification**: The `max_length` parameter is removed from the tool schema shown to clients
+2. **Transparent Injection**: When the client calls `fetch`, MCPCP automatically adds `max_length: 50000` before forwarding to the upstream server
+3. **Compression-Friendly**: The large response (up to 50000 chars) is then compressed by MCPCP before being sent to the client
+
+**Rules:**
+
+- All hidden parameters MUST have corresponding values in `parameterOverrides` (validated at config load)
+- Overrides are applied BEFORE PII masking (if enabled)
+- Overrides take precedence over client-provided values
+- You can use `parameterOverrides` without hiding to set better defaults while still allowing client overrides
+
+**Use Cases:**
+
+- **Optimize for compression**: Hide low-limit parameters, inject higher values, let compression handle size reduction
+- **Fix poorly-designed tools**: Override problematic defaults without modifying upstream servers
+- **Enforce policies**: Prevent clients from requesting excessively large/small values
+- **Simplify interfaces**: Hide complexity from LLMs that can't make informed decisions about certain parameters
+
+**Example with multiple parameters:**
+
+```json
+{
+  "tools": {
+    "api_request": {
+      "hideParameters": ["timeout", "retry_count"],
+      "parameterOverrides": {
+        "timeout": 30,
+        "retry_count": 3,
+        "headers": {
+          "User-Agent": "MCPCP/1.0"
+        }
+      }
+    }
+  }
+}
+```
+
 ### Cache
 
 Caches compressed tool responses to avoid redundant LLM compression calls. Identical requests return cached results instantly (~100x faster).

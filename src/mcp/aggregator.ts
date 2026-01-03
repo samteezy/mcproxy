@@ -69,6 +69,13 @@ export class Aggregator {
   }
 
   /**
+   * Get parameter overrides for a tool
+   */
+  getParameterOverrides(namespacedName: string): Record<string, unknown> {
+    return this.resolver.getParameterOverrides(namespacedName);
+  }
+
+  /**
    * Invalidate the aggregation cache
    */
   invalidateCache(): void {
@@ -151,7 +158,8 @@ export class Aggregator {
       .map((t) => {
         const descOverride = this.resolver.getDescriptionOverride(t.name);
         const toolWithDesc = descOverride ? { ...t, description: descOverride } : t;
-        const withGoal = this.injectGoalField(toolWithDesc as AggregatedTool);
+        const withHiddenParams = this.hideParameters(toolWithDesc as AggregatedTool);
+        const withGoal = this.injectGoalField(withHiddenParams as AggregatedTool);
         return this.injectBypassField(withGoal);
       });
   }
@@ -238,6 +246,53 @@ export class Aggregator {
     };
 
     return { name: tool.name, description, inputSchema };
+  }
+
+  /**
+   * Hide specified parameters from tool schema.
+   * Removes parameters from inputSchema.properties and required arrays.
+   */
+  private hideParameters(tool: AggregatedTool): Tool {
+    const hiddenParams = this.resolver.getHiddenParameters(tool.name);
+
+    // If no parameters to hide, return unchanged
+    if (hiddenParams.length === 0) {
+      return {
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+      };
+    }
+
+    const logger = getLogger();
+    logger.debug(
+      `Hiding parameters ${hiddenParams.join(", ")} from tool '${tool.name}'`
+    );
+
+    const existingSchema = tool.inputSchema;
+    const existingProperties = existingSchema.properties || {};
+    const existingRequired = (existingSchema.required as string[]) || [];
+
+    // Create new properties object without hidden parameters
+    const newProperties: { [x: string]: object } = {};
+    for (const [key, value] of Object.entries(existingProperties)) {
+      if (!hiddenParams.includes(key)) {
+        newProperties[key] = value as object;
+      }
+    }
+
+    // Create new required array without hidden parameters
+    const newRequired = existingRequired.filter(
+      (param) => !hiddenParams.includes(param)
+    );
+
+    const inputSchema = {
+      ...existingSchema,
+      properties: newProperties,
+      required: newRequired,
+    };
+
+    return { name: tool.name, description: tool.description, inputSchema };
   }
 
   /**

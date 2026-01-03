@@ -37,12 +37,34 @@ export const maskingPolicySchema = z.object({
   customPatterns: z.record(z.string(), customPatternDefSchema).optional(),
 });
 
-export const toolConfigSchema = z.object({
-  hidden: z.boolean().default(false),
-  compression: compressionPolicySchema.optional(),
-  masking: maskingPolicySchema.optional(),
-  overwriteDescription: z.string().optional(),
-});
+export const toolConfigSchema = z
+  .object({
+    hidden: z.boolean().default(false),
+    compression: compressionPolicySchema.optional(),
+    masking: maskingPolicySchema.optional(),
+    overwriteDescription: z.string().optional(),
+    cacheTtl: z.number().int().min(0).optional(),
+    hideParameters: z.array(z.string().min(1)).optional(),
+    parameterOverrides: z.record(z.string(), z.unknown()).optional(),
+  })
+  .refine(
+    (data) => {
+      // Validation: All hidden parameters must have overrides
+      if (data.hideParameters && data.hideParameters.length > 0) {
+        if (!data.parameterOverrides) {
+          return false;
+        }
+        // Check every hidden parameter has an override
+        const overrides = data.parameterOverrides;
+        return data.hideParameters.every((param) => param in overrides);
+      }
+      return true;
+    },
+    {
+      message:
+        "All hidden parameters must have corresponding values in parameterOverrides",
+    }
+  );
 
 export const upstreamServerSchema = z
   .object({
