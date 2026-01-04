@@ -180,7 +180,7 @@ export class Masker {
     context: MaskingContext
   ): Promise<T> {
     if (typeof value === "string") {
-      return this.maskString(value, path, policy, context);
+      return this.maskString(value, path, policy, context) as T;
     }
 
     if (Array.isArray(value)) {
@@ -189,7 +189,7 @@ export class Masker {
           this.maskValue(item, `${path}[${index}]`, policy, context)
         )
       );
-      return results;
+      return results as T;
     }
 
     if (value !== null && typeof value === "object") {
@@ -198,7 +198,7 @@ export class Masker {
         const fieldPath = path ? `${path}.${key}` : key;
         result[key] = await this.maskValue(val, fieldPath, policy, context);
       }
-      return result;
+      return result as T;
     }
 
     // Primitive non-string values pass through

@@ -182,13 +182,9 @@ export class Aggregator {
   /**
    * Inject _mcpcp_goal field into tool schema if goal-aware is enabled
    */
-  private injectGoalField(tool: AggregatedTool): Tool {
+  private injectGoalField(tool: AggregatedTool): AggregatedTool {
     if (!this.isGoalAwareEnabled(tool.name)) {
-      return {
-        name: tool.name,
-        description: tool.description,
-        inputSchema: tool.inputSchema,
-      };
+      return tool;
     }
 
     // Append instruction to description
@@ -216,14 +212,18 @@ export class Aggregator {
       required: [...existingRequired, "_mcpcp_goal"],
     };
 
-    return { name: tool.name, description, inputSchema };
+    return {
+      ...tool,
+      description,
+      inputSchema,
+    };
   }
 
   /**
    * Inject _mcpcp_bypass field into tool schema if bypass is enabled globally.
    * This allows clients to bypass compression when they need uncompressed data.
    */
-  private injectBypassField(tool: Tool): Tool {
+  private injectBypassField(tool: AggregatedTool): AggregatedTool {
     // Only add bypass field if globally enabled (default: false)
     if (!this.resolver.isBypassEnabled()) {
       return tool;
@@ -253,23 +253,23 @@ export class Aggregator {
       },
     };
 
-    return { name: tool.name, description, inputSchema };
+    return {
+      ...tool,
+      description,
+      inputSchema,
+    };
   }
 
   /**
    * Hide specified parameters from tool schema.
    * Removes parameters from inputSchema.properties and required arrays.
    */
-  private hideParameters(tool: AggregatedTool): Tool {
+  private hideParameters(tool: AggregatedTool): AggregatedTool {
     const hiddenParams = this.resolver.getHiddenParameters(tool.name);
 
     // If no parameters to hide, return unchanged
     if (hiddenParams.length === 0) {
-      return {
-        name: tool.name,
-        description: tool.description,
-        inputSchema: tool.inputSchema,
-      };
+      return tool;
     }
 
     const logger = getLogger();
@@ -300,7 +300,10 @@ export class Aggregator {
       required: newRequired,
     };
 
-    return { name: tool.name, description: tool.description, inputSchema };
+    return {
+      ...tool,
+      inputSchema,
+    };
   }
 
   /**
@@ -361,7 +364,15 @@ export class Aggregator {
   /**
    * Generic find method for cached entities
    */
-  private findEntity<T extends { name?: string; uri?: string; upstreamId: string }>(
+  private findEntity<
+    T extends {
+      name?: string;
+      uri?: string;
+      upstreamId: string;
+      originalName?: string;
+      originalUri?: string;
+    }
+  >(
     cache: T[],
     identifier: string,
     identifierType: 'name' | 'uri'
@@ -378,10 +389,10 @@ export class Aggregator {
     if (!client) return null;
 
     const originalValue = identifierType === 'uri'
-      ? (entity as { originalUri: string }).originalUri
-      : (entity as { originalName: string }).originalName;
+      ? entity.originalUri
+      : entity.originalName;
 
-    return { client, original: originalValue };
+    return { client, original: originalValue ?? identifier };
   }
 
   /**

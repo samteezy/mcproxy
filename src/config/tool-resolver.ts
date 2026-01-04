@@ -124,7 +124,7 @@ export class ToolConfigResolver {
   /**
    * Merge a tool-specific partial policy with base policy
    */
-  private mergePolicy<T extends Record<string, unknown>>(
+  private mergePolicy<T extends object>(
     base: T,
     override?: Partial<T>
   ): T {
@@ -152,7 +152,10 @@ export class ToolConfigResolver {
     const merged = this.mergePolicy(base, toolCompression);
 
     return {
-      ...merged,
+      enabled: merged.enabled,
+      tokenThreshold: merged.tokenThreshold,
+      maxOutputTokens: merged.maxOutputTokens,
+      customInstructions: merged.customInstructions,
       retryEscalation: this.globalRetryEscalation,
     };
   }
@@ -177,8 +180,10 @@ export class ToolConfigResolver {
     const merged = this.mergePolicy(base, toolMasking);
 
     return {
-      ...merged,
+      enabled: merged.enabled,
       piiTypes: merged.piiTypes ?? DEFAULT_PII_TYPES,
+      llmFallback: merged.llmFallback ?? false,
+      llmFallbackThreshold: merged.llmFallbackThreshold ?? "low",
       customPatterns: {
         ...(base.customPatterns ?? {}),
         ...(toolMasking?.customPatterns ?? {}),

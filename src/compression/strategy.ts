@@ -71,161 +71,46 @@ function buildPromptComponents(
 }
 
 /**
- * Get the compression prompt for a given strategy
+ * Build compression prompts using system/user separation.
  *
- * Structure: Content first (in XML tags), instructions last.
- * This leverages recency bias - instructions are fresh when generating.
+ * Returns an object with system and user prompts:
+ * - System: Compression instructions (immutable task definition)
+ * - User: Content to process + optional goal context
  *
- * When a goal is provided, prompts are restructured to make the goal
- * the primary focus, with aggressive filtering of irrelevant content.
+ * This structure works universally for all content types (JSON, code, text)
+ * and handles both goal-focused extraction and general compression.
  */
 export function getCompressionPrompt(
-  strategy: CompressionStrategy,
   content: string,
   maxTokens?: number,
   goal?: string,
   customInstructions?: string
-): string {
+): { system: string; user: string } {
   const { tokenLimit, customInstructionBlock } = buildPromptComponents(
     maxTokens,
     customInstructions
   );
 
-  // Goal-focused prompts are structured differently
+  // System prompt: Universal compression/extraction instructions
+  const systemPrompt = `You are a compression assistant. Your task is to compress or extract information from documents while preserving what matters.
+
+${goal ? `When a goal is provided, extract ONLY information relevant to that goal. Completely omit irrelevant sections - they waste tokens.` : `Compress the content while preserving important information, facts, and data. Remove redundancy and verbose language.`}
+
+General guidelines:
+- Preserve structure and formatting where helpful (JSON keys, code signatures, headings)
+- Remove non-critical details, boilerplate, and repetition
+- Be direct and concise${customInstructionBlock}
+
+${tokenLimit}
+
+Output only the compressed/extracted content. No explanations, preambles, or commentary.`;
+
+  // User prompt: The content + optional goal
+  let userPrompt = `<document>\n${content}\n</document>`;
+
   if (goal) {
-    return getGoalFocusedPrompt(strategy, content, goal, tokenLimit, customInstructionBlock);
+    userPrompt += `\n\n<goal>\n${goal}\n</goal>`;
   }
 
-  // Standard compression prompts (no goal)
-  switch (strategy) {
-    case "json":
-      return `<document type="json">
-${content}
-</document>
-
-<task>
-Compress the JSON above while preserving structure and important values. Remove redundant whitespace, shorten keys if possible, and summarize repeated patterns.${customInstructionBlock}
-
-${tokenLimit}
-Output only the compressed JSON, no explanations.
-</task>`;
-
-    case "code":
-      return `<document type="code">
-${content}
-</document>
-
-<task>
-Summarize the code above while preserving:
-- Function/class signatures and parameters
-- Key logic and algorithms
-- Important comments
-- Return types and values
-
-Remove non-critical implementation details.${customInstructionBlock}
-
-${tokenLimit}
-Output only the summarized code or pseudocode, no explanations.
-</task>`;
-
-    case "default":
-    default:
-      return `<document>
-${content}
-</document>
-
-<task>
-Summarize the document above while preserving all important information, facts, and data. Remove redundancy and verbose language. ${customInstructionBlock}
-
-${tokenLimit}
-Output only the compressed text, no explanations.
-</task>`;
-  }
-}
-
-/**
- * Generate goal-focused extraction prompts
- *
- * Structure: context first, task instructions, then goal at the end.
- * This puts the goal adjacent to the task for clarity.
- */
-function getGoalFocusedPrompt(
-  strategy: CompressionStrategy,
-  content: string,
-  goal: string,
-  tokenLimit: string,
-  customInstructionBlock: string
-): string {
-  const goalBlock = `<goal>
-${goal}
-</goal>`;
-
-  const relevanceFilter = `CRITICAL: Extract only information that helps achieve the goal below. Completely omit sections, fields, or details that are irrelevant - they waste tokens and distract from the purpose.`;
-
-  switch (strategy) {
-    case "json":
-      return `<document type="json">
-${content}
-</document>
-
-<task>
-Extract JSON data relevant to the goal.
-
-${relevanceFilter}
-
-- Keep structure intact for extracted data
-- Remove irrelevant keys/objects entirely
-- Summarize repeated patterns if relevant${customInstructionBlock}
-
-${tokenLimit}
-Output only the extracted JSON, no explanations.
-</task>
-
-${goalBlock}`;
-
-    case "code":
-      return `<document type="code">
-${content}
-</document>
-
-<task>
-Extract code relevant to the goal.
-
-${relevanceFilter}
-
-For extracted code, preserve:
-- Function/class signatures and parameters
-- Key logic and algorithms
-- Important comments
-- Return types and values
-
-Omit functions, classes, and sections unrelated to the goal.${customInstructionBlock}
-
-${tokenLimit}
-Output only the extracted code or summary, no explanations.
-</task>
-
-${goalBlock}`;
-
-    case "default":
-    default:
-      return `<document>
-${content}
-</document>
-
-<task>
-Extract information from the document that serves the goal.
-
-${relevanceFilter}
-
-- Focus on facts, data, and details that help achieve the objective
-- Omit tangential information, background, and unrelated sections
-- Be direct and actionable${customInstructionBlock}
-
-${tokenLimit}
-Output only the extracted information, no explanations.
-</task>
-
-${goalBlock}`;
-  }
+  return { system: systemPrompt, user: userPrompt };
 }

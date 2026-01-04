@@ -88,8 +88,7 @@ export class Compressor {
     );
 
     try {
-      const prompt = getCompressionPrompt(
-        strategy,
+      const prompts = getCompressionPrompt(
         content,
         policy.maxOutputTokens,
         goal,
@@ -98,8 +97,7 @@ export class Compressor {
 
       // Reconstruct prompt with truncated content for logging
       const contentPreview = this.createContentPreview(content);
-      const promptPreview = getCompressionPrompt(
-        strategy,
+      const promptsPreview = getCompressionPrompt(
         contentPreview,
         policy.maxOutputTokens,
         goal,
@@ -110,18 +108,24 @@ export class Compressor {
         `Calling LLM for compression with payload: ${JSON.stringify({
           model: this.config.model,
           maxOutputTokens: policy.maxOutputTokens,
-          promptLength: prompt.length,
+          systemPromptLength: prompts.system.length,
+          userPromptLength: prompts.user.length,
           contentLength: content.length,
-        })}\n\nFull prompt (with truncated content):\n${promptPreview}`
+        })}\n\nSystem prompt:\n${promptsPreview.system}\n\nUser prompt (with truncated content):\n${promptsPreview.user}`
       );
 
       const result = await generateText({
         model: this.provider(this.config.model),
-        prompt,
+        messages: [
+          { role: "system", content: prompts.system },
+          { role: "user", content: prompts.user },
+        ],
         maxOutputTokens: policy.maxOutputTokens,
       });
 
       // Extract <think> tags and main content
+      // Some LLMs (especially smaller models) may output reasoning in <think> tags.
+      // We extract the main content, falling back to think content if main is empty.
       const rawText = result.text;
       logger.debug(`Raw LLM response (${rawText.length} chars): ${rawText}`);
 
@@ -132,6 +136,7 @@ export class Compressor {
       let thinkContent = "";
       const thinkMatches = rawText.matchAll(/<think>([\s\S]*?)<\/think>/g);
       for (const match of thinkMatches) {
+        if (thinkContent) thinkContent += "\n";
         thinkContent += match[1];
       }
 

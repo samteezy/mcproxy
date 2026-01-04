@@ -153,7 +153,8 @@ describe("Compressor", () => {
       );
 
       const call = mockGenerateText.mock.calls[0][0];
-      expect(call.prompt).toContain("Find user information");
+      const userMessage = call.messages.find((m: { role: string }) => m.role === "user");
+      expect(userMessage.content).toContain("Find user information");
     });
 
     it("should extract content from <think> tags", async () => {
@@ -245,7 +246,8 @@ describe("Compressor", () => {
       );
 
       const call = mockGenerateText.mock.calls[0][0];
-      expect(call.prompt).toContain("Focus on key points only");
+      const systemMessage = call.messages.find((m: { role: string }) => m.role === "system");
+      expect(systemMessage.content).toContain("Focus on key points only");
     });
 
     it("should pass maxOutputTokens to LLM", async () => {
@@ -400,7 +402,8 @@ describe("Compressor", () => {
       await compressor.compressToolResult(result, "test-tool", "Find user data");
 
       const call = mockGenerateText.mock.calls[0][0];
-      expect(call.prompt).toContain("Find user data");
+      const userMessage = call.messages.find((m: { role: string }) => m.role === "user");
+      expect(userMessage.content).toContain("Find user data");
     });
 
     it("should combine multiple text contents before compression", async () => {
@@ -417,11 +420,12 @@ describe("Compressor", () => {
         ],
       };
 
-      const compressed = await compressor.compressToolResult(result, "test-tool");
+      await compressor.compressToolResult(result, "test-tool");
 
       // Should combine with newline
       const call = mockGenerateText.mock.calls[0][0];
-      expect(call.prompt).toContain("Part 1\nPart 2");
+      const userMessage = call.messages.find((m: { role: string }) => m.role === "user");
+      expect(userMessage.content).toContain("Part 1\nPart 2");
     });
 
     it("should deduplicate text content after compression", async () => {

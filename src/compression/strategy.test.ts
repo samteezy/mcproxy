@@ -182,234 +182,169 @@ This is some markdown text with **bold** and *italic*.
 });
 
 describe("getCompressionPrompt", () => {
-  describe("JSON strategy", () => {
-    it("should generate prompt for JSON without goal", () => {
-      const prompt = getCompressionPrompt("json", '{"test": "data"}', 500);
+  describe("system/user prompt structure", () => {
+    it("should return object with system and user prompts", () => {
+      const prompts = getCompressionPrompt("test content", 500);
 
-      expect(prompt).toContain('<document type="json">');
-      expect(prompt).toContain('{"test": "data"}');
-      expect(prompt).toContain("</document>");
-      expect(prompt).toContain("Compress the JSON");
-      expect(prompt).toContain("preserving structure");
-      expect(prompt).toContain("under 500 tokens");
-      expect(prompt).toContain("Output only the compressed JSON");
+      expect(prompts).toHaveProperty("system");
+      expect(prompts).toHaveProperty("user");
+      expect(typeof prompts.system).toBe("string");
+      expect(typeof prompts.user).toBe("string");
     });
 
-    it("should generate goal-focused prompt for JSON", () => {
-      const prompt = getCompressionPrompt(
-        "json",
-        '{"test": "data"}',
-        500,
-        "Find user information"
-      );
+    it("should place content in user prompt", () => {
+      const content = '{"test": "data"}';
+      const prompts = getCompressionPrompt(content, 500);
 
-      expect(prompt).toContain('<document type="json">');
-      expect(prompt).toContain('<goal>');
-      expect(prompt).toContain("Find user information");
-      expect(prompt).toContain("</goal>");
-      expect(prompt).toContain("Extract JSON data relevant to the goal");
-      expect(prompt).toContain("CRITICAL: Extract only information");
-      expect(prompt).toContain("Remove irrelevant keys");
+      expect(prompts.user).toContain("<document>");
+      expect(prompts.user).toContain(content);
+      expect(prompts.user).toContain("</document>");
+    });
+
+    it("should place instructions in system prompt", () => {
+      const prompts = getCompressionPrompt("test", 500);
+
+      expect(prompts.system).toContain("compression assistant");
+      expect(prompts.system).toContain("compress");
+      expect(prompts.system).toContain("under 500 tokens");
     });
   });
 
-  describe("code strategy", () => {
-    it("should generate prompt for code without goal", () => {
-      const code = "function test() { return 42; }";
-      const prompt = getCompressionPrompt("code", code, 500);
+  describe("goal handling", () => {
+    it("should include goal in user prompt when provided", () => {
+      const prompts = getCompressionPrompt("test content", 500, "Find user data");
 
-      expect(prompt).toContain('<document type="code">');
-      expect(prompt).toContain(code);
-      expect(prompt).toContain("Summarize the code");
-      expect(prompt).toContain("Function/class signatures");
-      expect(prompt).toContain("Key logic and algorithms");
-      expect(prompt).toContain("under 500 tokens");
-      expect(prompt).toContain("Output only the summarized code");
+      expect(prompts.user).toContain("<goal>");
+      expect(prompts.user).toContain("Find user data");
+      expect(prompts.user).toContain("</goal>");
     });
 
-    it("should generate goal-focused prompt for code", () => {
-      const code = "function test() { return 42; }";
-      const prompt = getCompressionPrompt(
-        "code",
-        code,
-        500,
-        "Find authentication functions"
-      );
+    it("should omit goal tags when not provided", () => {
+      const prompts = getCompressionPrompt("test content", 500);
 
-      expect(prompt).toContain('<document type="code">');
-      expect(prompt).toContain('<goal>');
-      expect(prompt).toContain("Find authentication functions");
-      expect(prompt).toContain("Extract code relevant to the goal");
-      expect(prompt).toContain("CRITICAL: Extract only information");
-      expect(prompt).toContain("Omit functions, classes, and sections unrelated");
-    });
-  });
-
-  describe("default strategy", () => {
-    it("should generate prompt for text without goal", () => {
-      const text = "This is some plain text content.";
-      const prompt = getCompressionPrompt("default", text, 500);
-
-      expect(prompt).toContain("<document>");
-      expect(prompt).toContain(text);
-      expect(prompt).toContain("</document>");
-      expect(prompt).toContain("Summarize the document");
-      expect(prompt).toContain("preserving all important information");
-      expect(prompt).toContain("under 500 tokens");
-      expect(prompt).toContain("Output only the compressed text");
+      expect(prompts.user).not.toContain("<goal>");
+      expect(prompts.user).not.toContain("</goal>");
     });
 
-    it("should generate goal-focused prompt for text", () => {
-      const text = "This is some plain text content.";
-      const prompt = getCompressionPrompt(
-        "default",
-        text,
-        500,
-        "Find pricing information"
-      );
+    it("should adjust system prompt based on goal presence", () => {
+      const withoutGoal = getCompressionPrompt("test", 500);
+      const withGoal = getCompressionPrompt("test", 500, "Find data");
 
-      expect(prompt).toContain("<document>");
-      expect(prompt).toContain('<goal>');
-      expect(prompt).toContain("Find pricing information");
-      expect(prompt).toContain("Extract information from the document");
-      expect(prompt).toContain("CRITICAL: Extract only information");
-      expect(prompt).toContain("Omit tangential information");
+      expect(withoutGoal.system).toContain("Compress the content");
+      expect(withGoal.system).toContain("extract ONLY information relevant to that goal");
+      expect(withGoal.system).toContain("Completely omit irrelevant sections");
     });
   });
 
   describe("maxTokens handling", () => {
     it("should include token limit when provided", () => {
-      const prompt = getCompressionPrompt("default", "test", 250);
-      expect(prompt).toContain("under 250 tokens");
+      const prompts = getCompressionPrompt("test", 250);
+      expect(prompts.system).toContain("under 250 tokens");
     });
 
     it("should use generic message when maxTokens not provided", () => {
-      const prompt = getCompressionPrompt("default", "test");
-      expect(prompt).toContain("Be concise while retaining helpful details");
-      expect(prompt).not.toContain("under");
-      expect(prompt).not.toContain("tokens");
+      const prompts = getCompressionPrompt("test");
+      expect(prompts.system).toContain("Be concise while retaining helpful details");
+      expect(prompts.system).not.toContain("under");
     });
   });
 
   describe("custom instructions", () => {
     it("should append custom instructions when provided", () => {
-      const prompt = getCompressionPrompt(
-        "default",
+      const prompts = getCompressionPrompt(
         "test",
         500,
         undefined,
         "Focus on technical details"
       );
 
-      expect(prompt).toContain("ADDITIONAL INSTRUCTIONS:");
-      expect(prompt).toContain("Focus on technical details");
+      expect(prompts.system).toContain("ADDITIONAL INSTRUCTIONS:");
+      expect(prompts.system).toContain("Focus on technical details");
     });
 
     it("should not include custom instructions block when not provided", () => {
-      const prompt = getCompressionPrompt("default", "test", 500);
-      expect(prompt).not.toContain("ADDITIONAL INSTRUCTIONS");
+      const prompts = getCompressionPrompt("test", 500);
+      expect(prompts.system).not.toContain("ADDITIONAL INSTRUCTIONS");
     });
 
-    it("should include custom instructions in goal-focused prompts", () => {
-      const prompt = getCompressionPrompt(
-        "json",
-        '{"test": "data"}',
+    it("should include custom instructions with goal", () => {
+      const prompts = getCompressionPrompt(
+        "test",
         500,
-        "Find user data",
+        "Find data",
         "Preserve timestamps"
       );
 
-      expect(prompt).toContain("ADDITIONAL INSTRUCTIONS:");
-      expect(prompt).toContain("Preserve timestamps");
+      expect(prompts.system).toContain("ADDITIONAL INSTRUCTIONS:");
+      expect(prompts.system).toContain("Preserve timestamps");
     });
   });
 
-  describe("goal parameter", () => {
-    it("should generate different prompts with vs without goal", () => {
-      const content = "test content";
-      const withoutGoal = getCompressionPrompt("default", content, 500);
-      const withGoal = getCompressionPrompt("default", content, 500, "test goal");
+  describe("unified strategy handling", () => {
+    it("should use same prompt structure for all content types", () => {
+      const jsonContent = '{"key": "value"}';
+      const codeContent = "function test() {}";
+      const textContent = "Plain text content";
 
-      expect(withoutGoal).not.toContain("<goal>");
-      expect(withoutGoal).toContain("Summarize the document");
+      const jsonPrompts = getCompressionPrompt(jsonContent, 500);
+      const codePrompts = getCompressionPrompt(codeContent, 500);
+      const textPrompts = getCompressionPrompt(textContent, 500);
 
-      expect(withGoal).toContain("<goal>");
-      expect(withGoal).toContain("Extract information");
-      expect(withGoal).toContain("CRITICAL");
+      // All should have same structure (system instructions don't vary by content type)
+      expect(jsonPrompts.system).toContain("compression assistant");
+      expect(codePrompts.system).toContain("compression assistant");
+      expect(textPrompts.system).toContain("compression assistant");
+
+      // User prompts should all use <document> tags (no type attribute)
+      expect(jsonPrompts.user).toMatch(/<document>\n/);
+      expect(codePrompts.user).toMatch(/<document>\n/);
+      expect(textPrompts.user).toMatch(/<document>\n/);
     });
 
-    it("should place goal at the end of prompt for recency bias", () => {
-      const prompt = getCompressionPrompt(
-        "default",
-        "test",
-        500,
-        "Find specific data"
-      );
-
-      const goalIndex = prompt.indexOf("<goal>");
-      const taskIndex = prompt.indexOf("<task>");
-
-      // Goal should come after task in goal-focused prompts
-      expect(goalIndex).toBeGreaterThan(taskIndex);
-    });
-  });
-
-  describe("prompt structure", () => {
-    it("should always have document section first", () => {
-      const prompt = getCompressionPrompt("default", "test content", 500);
-      expect(prompt.indexOf("<document>")).toBeLessThan(prompt.indexOf("<task>"));
-    });
-
-    it("should wrap content in appropriate document tags", () => {
-      const jsonPrompt = getCompressionPrompt("json", "{}", 500);
-      expect(jsonPrompt).toMatch(/<document type="json">/);
-
-      const codePrompt = getCompressionPrompt("code", "code", 500);
-      expect(codePrompt).toMatch(/<document type="code">/);
-
-      const textPrompt = getCompressionPrompt("default", "text", 500);
-      expect(textPrompt).toMatch(/<document>(?!.*type=)/); // No type attribute
+    it("should mention structure preservation for all content types", () => {
+      const prompts = getCompressionPrompt("test", 500);
+      expect(prompts.system).toContain("Preserve structure and formatting where helpful");
+      expect(prompts.system).toContain("JSON keys, code signatures, headings");
     });
   });
 
   describe("edge cases", () => {
     it("should handle empty content", () => {
-      const prompt = getCompressionPrompt("default", "", 500);
-      expect(prompt).toContain("<document>");
-      expect(prompt).toContain("</document>");
+      const prompts = getCompressionPrompt("", 500);
+      expect(prompts.user).toContain("<document>");
+      expect(prompts.user).toContain("</document>");
     });
 
     it("should handle very long content", () => {
       const longContent = "a".repeat(100000);
-      const prompt = getCompressionPrompt("default", longContent, 500);
-      expect(prompt).toContain(longContent);
+      const prompts = getCompressionPrompt(longContent, 500);
+      expect(prompts.user).toContain(longContent);
     });
 
     it("should handle special characters in content", () => {
       const content = '<script>alert("xss")</script>';
-      const prompt = getCompressionPrompt("default", content, 500);
-      expect(prompt).toContain(content);
+      const prompts = getCompressionPrompt(content, 500);
+      expect(prompts.user).toContain(content);
     });
 
     it("should handle special characters in goal", () => {
       const goal = 'Find items with "quotes" and <tags>';
-      const prompt = getCompressionPrompt("default", "test", 500, goal);
-      expect(prompt).toContain(goal);
+      const prompts = getCompressionPrompt("test", 500, goal);
+      expect(prompts.user).toContain(goal);
     });
 
     it("should handle all parameters together", () => {
-      const prompt = getCompressionPrompt(
-        "code",
+      const prompts = getCompressionPrompt(
         "function test() {}",
         750,
         "Find functions",
         "Keep comments"
       );
 
-      expect(prompt).toContain("function test()");
-      expect(prompt).toContain("under 750 tokens");
-      expect(prompt).toContain("Find functions");
-      expect(prompt).toContain("Keep comments");
+      expect(prompts.user).toContain("function test()");
+      expect(prompts.system).toContain("under 750 tokens");
+      expect(prompts.user).toContain("Find functions");
+      expect(prompts.system).toContain("Keep comments");
     });
   });
 });
