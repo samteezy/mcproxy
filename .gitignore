@@ -5,4 +5,5 @@ dist
 .DS_Store
 coverage
 mcpcp.config.json
+custom.json
 todo.md

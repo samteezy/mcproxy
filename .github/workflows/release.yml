@@ -40,7 +40,9 @@ jobs:
 
       - run: npm ci
       - run: npm run build
-      - run: npm test
+
+      - name: Run tests with coverage threshold check
+        run: npm run test:coverage
 
       - run: npm publish --provenance --access public
 
