@@ -151,7 +151,7 @@ export class Masker {
 
     return {
       original: args,
-      masked: masked as Record<string, unknown>,
+      masked,
       wasMasked: context.maskedFields.length > 0,
       maskedFields: context.maskedFields,
       restorationMap: context.restorationMap,
@@ -173,12 +173,12 @@ export class Masker {
   /**
    * Recursively mask a value (object, array, or primitive)
    */
-  private async maskValue(
-    value: unknown,
+  private async maskValue<T>(
+    value: T,
     path: string,
     policy: ResolvedMaskingPolicy,
     context: MaskingContext
-  ): Promise<unknown> {
+  ): Promise<T> {
     if (typeof value === "string") {
       return this.maskString(value, path, policy, context);
     }
