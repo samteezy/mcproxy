@@ -11,11 +11,11 @@ describe("MemoryCache", () => {
   let cache: MemoryCache<string>;
 
   beforeEach(() => {
-    cache = new MemoryCache({ enabled: true, ttlSeconds: 60, maxEntries: 100 });
+    cache = new MemoryCache({ maxEntries: 100 });
   });
 
   it("should store and retrieve values", () => {
-    cache.set("key1", "value1");
+    cache.set("key1", "value1", 60);
     expect(cache.get("key1")).toBe("value1");
   });
 
@@ -23,23 +23,11 @@ describe("MemoryCache", () => {
     expect(cache.get("nonexistent")).toBeUndefined();
   });
 
-  it("should respect enabled flag", () => {
-    const disabledCache = new MemoryCache<string>({
-      enabled: false,
-      ttlSeconds: 60,
-      maxEntries: 100,
-    });
-    disabledCache.set("key1", "value1");
-    expect(disabledCache.get("key1")).toBeUndefined();
-  });
-
   it("should expire entries after TTL", async () => {
     const shortTtlCache = new MemoryCache<string>({
-      enabled: true,
-      ttlSeconds: 0.1, // 100ms
       maxEntries: 100,
     });
-    shortTtlCache.set("key1", "value1");
+    shortTtlCache.set("key1", "value1", 0.1); // 100ms TTL
     expect(shortTtlCache.get("key1")).toBe("value1");
 
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -57,13 +45,11 @@ describe("MemoryCache", () => {
 
   it("should evict oldest entry when max entries exceeded", () => {
     const smallCache = new MemoryCache<string>({
-      enabled: true,
-      ttlSeconds: 60,
       maxEntries: 2,
     });
-    smallCache.set("key1", "value1");
-    smallCache.set("key2", "value2");
-    smallCache.set("key3", "value3");
+    smallCache.set("key1", "value1", 60);
+    smallCache.set("key2", "value2", 60);
+    smallCache.set("key3", "value3", 60);
 
     expect(smallCache.get("key1")).toBeUndefined();
     expect(smallCache.get("key2")).toBe("value2");
@@ -71,8 +57,8 @@ describe("MemoryCache", () => {
   });
 
   it("should clear all entries", () => {
-    cache.set("key1", "value1");
-    cache.set("key2", "value2");
+    cache.set("key1", "value1", 60);
+    cache.set("key2", "value2", 60);
     cache.clear();
     expect(cache.get("key1")).toBeUndefined();
     expect(cache.get("key2")).toBeUndefined();
@@ -80,27 +66,25 @@ describe("MemoryCache", () => {
   });
 
   it("should delete specific entries", () => {
-    cache.set("key1", "value1");
-    cache.set("key2", "value2");
+    cache.set("key1", "value1", 60);
+    cache.set("key2", "value2", 60);
     expect(cache.delete("key1")).toBe(true);
     expect(cache.get("key1")).toBeUndefined();
     expect(cache.get("key2")).toBe("value2");
   });
 
   it("should report has correctly", () => {
-    cache.set("key1", "value1");
+    cache.set("key1", "value1", 60);
     expect(cache.has("key1")).toBe(true);
     expect(cache.has("nonexistent")).toBe(false);
   });
 
   it("should cleanup expired entries", async () => {
     const shortTtlCache = new MemoryCache<string>({
-      enabled: true,
-      ttlSeconds: 0.1,
       maxEntries: 100,
     });
-    shortTtlCache.set("key1", "value1");
-    shortTtlCache.set("key2", "value2");
+    shortTtlCache.set("key1", "value1", 0.1); // 100ms TTL
+    shortTtlCache.set("key2", "value2", 0.1); // 100ms TTL
 
     await new Promise((resolve) => setTimeout(resolve, 150));
     const removed = shortTtlCache.cleanup();
@@ -108,9 +92,10 @@ describe("MemoryCache", () => {
     expect(shortTtlCache.size).toBe(0);
   });
 
-  it("should update config and clear when disabled", () => {
-    cache.set("key1", "value1");
-    cache.updateConfig({ enabled: false, ttlSeconds: 60, maxEntries: 100 });
+  it("should update config and clear cache", () => {
+    cache.set("key1", "value1", 60);
+    cache.updateConfig({ maxEntries: 200 });
+    // updateConfig clears the cache
     expect(cache.get("key1")).toBeUndefined();
   });
 });
@@ -243,15 +228,13 @@ describe("compressedResultCacheKey", () => {
 describe("MemoryCache - Additional Edge Cases", () => {
   it("should handle size property correctly", () => {
     const cache = new MemoryCache<string>({
-      enabled: true,
-      ttlSeconds: 60,
       maxEntries: 100,
     });
 
     expect(cache.size).toBe(0);
-    cache.set("key1", "value1");
+    cache.set("key1", "value1", 60);
     expect(cache.size).toBe(1);
-    cache.set("key2", "value2");
+    cache.set("key2", "value2", 60);
     expect(cache.size).toBe(2);
     cache.delete("key1");
     expect(cache.size).toBe(1);
@@ -259,32 +242,28 @@ describe("MemoryCache - Additional Edge Cases", () => {
     expect(cache.size).toBe(0);
   });
 
-  it("should update config without clearing when enabled", () => {
+  it("should update config and clear cache", () => {
     const cache = new MemoryCache<string>({
-      enabled: true,
-      ttlSeconds: 60,
       maxEntries: 100,
     });
 
-    cache.set("key1", "value1");
+    cache.set("key1", "value1", 60);
     expect(cache.get("key1")).toBe("value1");
 
-    // Update config but keep enabled=true
-    cache.updateConfig({ enabled: true, ttlSeconds: 120, maxEntries: 200 });
+    // Update config (clears cache)
+    cache.updateConfig({ maxEntries: 200 });
 
-    // Cache should still have the value
-    expect(cache.get("key1")).toBe("value1");
+    // Cache should be cleared
+    expect(cache.get("key1")).toBeUndefined();
   });
 
   it("should handle multiple cleanup calls", () => {
     const cache = new MemoryCache<string>({
-      enabled: true,
-      ttlSeconds: 0.1,
       maxEntries: 100,
     });
 
-    cache.set("key1", "value1");
-    cache.set("key2", "value2");
+    cache.set("key1", "value1", 0.1); // 100ms TTL
+    cache.set("key2", "value2", 0.1); // 100ms TTL
 
     // Multiple cleanup calls should not cause errors
     cache.cleanup();
@@ -296,8 +275,6 @@ describe("MemoryCache - Additional Edge Cases", () => {
 
   it("should return false when deleting non-existent key", () => {
     const cache = new MemoryCache<string>({
-      enabled: true,
-      ttlSeconds: 60,
       maxEntries: 100,
     });
 
@@ -306,16 +283,14 @@ describe("MemoryCache - Additional Edge Cases", () => {
 
   it("should handle setting same key multiple times", () => {
     const cache = new MemoryCache<string>({
-      enabled: true,
-      ttlSeconds: 60,
       maxEntries: 100,
     });
 
-    cache.set("key1", "value1");
+    cache.set("key1", "value1", 60);
     expect(cache.get("key1")).toBe("value1");
     expect(cache.size).toBe(1);
 
-    cache.set("key1", "value2");
+    cache.set("key1", "value2", 60);
     expect(cache.get("key1")).toBe("value2");
     expect(cache.size).toBe(1); // Size should still be 1
   });

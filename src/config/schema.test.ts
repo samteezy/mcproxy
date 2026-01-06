@@ -122,25 +122,25 @@ describe("toolConfigSchema - Parameter Hiding Validation", () => {
     expect(result.success).toBe(false);
   });
 
-  it("should accept valid cacheTtl", () => {
+  it("should accept valid cache policy", () => {
     const config = {
-      cacheTtl: 300,
+      cache: { ttlSeconds: 300 },
     };
     const result = toolConfigSchema.safeParse(config);
     expect(result.success).toBe(true);
   });
 
-  it("should reject negative cacheTtl", () => {
+  it("should reject negative cache ttlSeconds", () => {
     const config = {
-      cacheTtl: -1,
+      cache: { ttlSeconds: -1 },
     };
     const result = toolConfigSchema.safeParse(config);
     expect(result.success).toBe(false);
   });
 
-  it("should accept cacheTtl of 0 (no caching)", () => {
+  it("should accept cache with disabled flag", () => {
     const config = {
-      cacheTtl: 0,
+      cache: { enabled: false },
     };
     const result = toolConfigSchema.safeParse(config);
     expect(result.success).toBe(true);
@@ -150,7 +150,7 @@ describe("toolConfigSchema - Parameter Hiding Validation", () => {
     const config = {
       hidden: false,
       compression: { enabled: true, tokenThreshold: 1000 },
-      cacheTtl: 60,
+      cache: { ttlSeconds: 60 },
       hideParameters: ["max_length"],
       parameterOverrides: { max_length: 50000 },
       overwriteDescription: "Custom description",
@@ -632,17 +632,14 @@ describe("configSchema", () => {
       compression: {
         baseUrl: "http://localhost:8080/v1",
         model: "test-model",
-        defaultPolicy: {
-          enabled: true,
-          tokenThreshold: 1000,
-        },
       },
     };
     const result = configSchema.safeParse(config);
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.cache).toBeDefined();
-      expect(result.data.cache.enabled).toBe(true);
+      expect(result.data.cache.maxEntries).toBe(1000);
+      expect(result.data.defaults.cache!.enabled).toBe(true);
     }
   });
 

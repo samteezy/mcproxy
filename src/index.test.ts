@@ -88,7 +88,7 @@ describe("Module Exports", () => {
     });
 
     it("should have all exports defined and not null", () => {
-      Object.entries(index).forEach(([key, value]) => {
+      Object.entries(index).forEach(([_key, value]) => {
         expect(value).toBeDefined();
         expect(value).not.toBeNull();
       });

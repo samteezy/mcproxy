@@ -70,6 +70,7 @@ mcp-context-proxy --init
 2. Edit `mcpcp.config.json` to configure your upstream servers and compression model:
 ```json
 {
+  "version": 2,
   "downstream": {
     "transport": "stdio"
   },
@@ -82,14 +83,25 @@ mcp-context-proxy --init
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
     }
   ],
-  "compression": {
-    "baseUrl": "http://localhost:8080/v1",
-    "model": "your-model",
-    "defaultPolicy": {
+  "defaults": {
+    "compression": {
       "enabled": true,
       "tokenThreshold": 1000,
-      "maxOutputTokens": 500
+      "maxOutputTokens": 500,
+      "goalAware": true
+    },
+    "cache": {
+      "enabled": true,
+      "ttlSeconds": 300
     }
+  },
+  "compression": {
+    "baseUrl": "http://localhost:8080/v1",
+    "model": "your-model"
+  },
+  "cache": {
+    "maxEntries": 1000,
+    "cacheErrors": true
   }
 }
 ```
@@ -176,6 +188,17 @@ The dashboard uses these API endpoints, which are also available for programmati
 
 ## Configuration
 
+MCPCP supports a flexible configuration system with a **three-level hierarchy** (global defaults → upstream defaults → tool-specific) for controlling compression, masking, and caching behaviors. This eliminates repetition and allows precise control when needed.
+
+**For practical examples, use cases, and detailed guidance, see [CONFIGURATION.md](./CONFIGURATION.md).**
+
+### Configuration File
+
+- **Default location:** `mcpcp.config.json` in the current directory
+- **Custom location:** Use `--config <path>` flag
+- **Generate template:** Run `mcp-context-proxy --init`
+- **Current version:** `version: 2` ([Migration from v0.3.x](https://github.com/samteezy/mcp-context-proxy/issues/13#issuecomment-3710637305))
+
 ### Downstream (Client-facing)
 
 | Field | Type | Description |
@@ -198,27 +221,37 @@ The dashboard uses these API endpoints, which are also available for programmati
 
 ### Compression
 
+#### Infrastructure Settings
+
+The top-level `compression` object configures **where and how to connect** to the compression LLM:
+
 | Field | Type | Description |
 |-------|------|-------------|
 | `baseUrl` | `string` | OpenAI-compatible API base URL |
 | `apiKey` | `string` | API key (optional for local models) |
 | `model` | `string` | Model identifier |
-| `defaultPolicy` | `object` | Default compression policy for all tools |
-| `goalAware` | `boolean` | Inject `_mcpcp_goal` field into tool schemas (default: true) |
 | `bypassEnabled` | `boolean` | Inject `_mcpcp_bypass` field to allow skipping compression (default: false) |
 | `retryEscalation` | `object` | Auto-increase output on repeated tool calls (see below) |
 
-#### Default Policy
+#### Compression Policy
+
+**Compression policies** (when/how to compress) are configured via the **three-level hierarchy**: `defaults.compression`, `upstreams[].defaults.compression`, `upstreams[].tools[name].compression`
+
+**Resolution:** Tool-specific > Upstream defaults > Global defaults > Built-in defaults
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `enabled` | `boolean` | Enable/disable compression globally (default: true) |
+| `enabled` | `boolean` | Enable/disable compression (default: true) |
 | `tokenThreshold` | `number` | Minimum tokens to trigger compression (default: 1000) |
 | `maxOutputTokens` | `number` | Maximum tokens in compressed output |
+| `goalAware` | `boolean` | Inject `_mcpcp_goal` field into tool schemas (default: true) |
+| `customInstructions` | `string` | Additional instructions for compression LLM |
+
+**See:** [CONFIGURATION.md - Use Cases](./CONFIGURATION.md#configuration-by-use-case) for practical examples
 
 #### Retry Escalation
 
-When enabled, the proxy tracks repeated calls to the same tool within a sliding window and automatically increases `maxOutputTokens` on each retry. This helps when compression removes information that the client LLM needs.
+Automatically increases `maxOutputTokens` on repeated tool calls within a sliding window when compression may have removed needed information.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -226,293 +259,127 @@ When enabled, the proxy tracks repeated calls to the same tool within a sliding 
 | `windowSeconds` | `number` | Sliding window to track calls (default: 60) |
 | `tokenMultiplier` | `number` | Linear multiplier per retry (default: 2) |
 
-**Behavior:** With default settings (multiplier=2):
-- 1st call: normal `maxOutputTokens`
-- 2nd call within 60s: `maxOutputTokens * 2`
-- 3rd call within 60s: `maxOutputTokens * 3`
-- After window expires: resets to 1x
+**Behavior:** 1st call uses normal `maxOutputTokens`, 2nd call within window uses `maxOutputTokens * 2`, 3rd uses `maxOutputTokens * 3`, etc.
+
+**See:** [CONFIGURATION.md - Retry Escalation Pattern](./CONFIGURATION.md#pattern-retry-escalation) for detailed examples
 
 #### Compression Metadata
 
-All compressed responses include a metadata header prepended to the content:
+All compressed responses include a metadata header:
 
 ```
 [Compressed: 14246→283 tokens, strategy: json]
-
-{actual compressed content}
-```
-
-When escalation is applied:
-```
 [Compressed: 14246→566 tokens, strategy: json, escalation: 2x]
 ```
 
+Format: `[Compressed: {original}→{compressed} tokens, strategy: {json|code|default}, escalation: {multiplier}]`
+
 #### Bypass Field
 
-When `bypassEnabled: true`, a `_mcpcp_bypass` field is added to all tool schemas. Clients can set this to `true` to skip compression entirely and receive the full uncompressed response. This is useful when the compressed response is missing critical information.
+When `bypassEnabled: true`, adds `_mcpcp_bypass` field to all tool schemas. Clients can set this to `true` to receive the full uncompressed response.
 
-#### Per-Tool Policies
-
-You can override the default compression policy for specific tools within each upstream's `tools` configuration. Use the tool's **original name** (not namespaced):
-
-```json
-{
-  "upstreams": [
-    {
-      "id": "my-server",
-      "name": "My Server",
-      "transport": "stdio",
-      "command": "npx",
-      "args": ["-y", "some-mcp-server"],
-      "tools": {
-        "read_file": {
-          "compression": { "enabled": false }
-        },
-        "search": {
-          "compression": {
-            "tokenThreshold": 200,
-            "maxOutputTokens": 100,
-            "customInstructions": "Focus on error messages and stack traces. Preserve file paths."
-          }
-        }
-      }
-    }
-  ]
-}
-```
-
-Each tool's `compression` object can override: `enabled`, `tokenThreshold`, `maxOutputTokens`, `customInstructions`
-
-#### Custom Instructions
-
-The `customInstructions` field lets you guide the compression LLM for specific tools:
-
-```json
-"tools": {
-  "fetch": {
-    "compression": {
-      "customInstructions": "Preserve all URLs, dates, and code examples verbatim."
-    }
-  },
-  "query": {
-    "compression": {
-      "customInstructions": "Focus on row counts and error messages. Omit raw data rows."
-    }
-  }
-}
-```
-
-These instructions are appended to the compression prompt, allowing you to customize what information is preserved or omitted for each tool.
-
-#### Parameter Hiding & Overrides
-
-For tools with problematic default parameters, you can hide them from the client schema and inject your own values server-side. This is particularly useful for parameters like `max_length` where LLMs can't know the optimal value before seeing the content.
-
-**Configuration:**
-
-```json
-{
-  "upstreams": [
-    {
-      "id": "fetch-server",
-      "name": "Fetch Server",
-      "transport": "stdio",
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-fetch"],
-      "tools": {
-        "fetch": {
-          "hideParameters": ["max_length"],
-          "parameterOverrides": {
-            "max_length": 50000
-          }
-        }
-      }
-    }
-  ]
-}
-```
-
-**How it works:**
-
-1. **Schema Modification**: The `max_length` parameter is removed from the tool schema shown to clients
-2. **Transparent Injection**: When the client calls `fetch`, MCPCP automatically adds `max_length: 50000` before forwarding to the upstream server
-3. **Compression-Friendly**: The large response (up to 50000 chars) is then compressed by MCPCP before being sent to the client
-
-**Rules:**
-
-- All hidden parameters MUST have corresponding values in `parameterOverrides` (validated at config load)
-- Overrides are applied BEFORE PII masking (if enabled)
-- Overrides take precedence over client-provided values
-- You can use `parameterOverrides` without hiding to set better defaults while still allowing client overrides
-
-**Use Cases:**
-
-- **Optimize for compression**: Hide low-limit parameters, inject higher values, let compression handle size reduction
-- **Fix poorly-designed tools**: Override problematic defaults without modifying upstream servers
-- **Enforce policies**: Prevent clients from requesting excessively large/small values
-- **Simplify interfaces**: Hide complexity from LLMs that can't make informed decisions about certain parameters
-
-**Example with multiple parameters:**
-
-```json
-{
-  "tools": {
-    "api_request": {
-      "hideParameters": ["timeout", "retry_count"],
-      "parameterOverrides": {
-        "timeout": 30,
-        "retry_count": 3,
-        "headers": {
-          "User-Agent": "MCPCP/1.0"
-        }
-      }
-    }
-  }
-}
-```
+**See:** [CONFIGURATION.md - Bypass Pattern](./CONFIGURATION.md#pattern-bypass-field)
 
 ### Cache
 
-Caches compressed tool responses to avoid redundant LLM compression calls. Identical requests return cached results instantly (~100x faster).
+#### Infrastructure Settings
+
+The top-level `cache` object configures cache infrastructure:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `maxEntries` | `number` | Maximum cache entries (default: 1000) |
+| `cacheErrors` | `boolean` | Cache error responses (default: true) |
+
+#### Cache Policy
+
+**Cache policies** (when/how long to cache) are configured via the **three-level hierarchy**: `defaults.cache`, `upstreams[].defaults.cache`, `upstreams[].tools[name].cache`
+
+**Resolution:** Tool-specific > Upstream defaults > Global defaults > Built-in defaults
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `enabled` | `boolean` | Enable/disable caching (default: true) |
 | `ttlSeconds` | `number` | Cache entry TTL in seconds (default: 300) |
-| `maxEntries` | `number` | Maximum cache entries (default: 1000) |
-| `cacheErrors` | `boolean` | Cache error responses (default: true) |
 
-Cache keys include: tool name, arguments, and normalized goal (lowercase, no punctuation). This means requests with semantically similar goals like "Find the API endpoints!" and "find the api endpoints" will share cached results.
+**Cache Key:** tool name + arguments + normalized goal
 
-#### Per-Tool Cache TTL
+**Goal Normalization:** Lowercase + removes all punctuation. Examples: "Find API!" → "find api", "What's this?" → "whats this"
 
-You can override the cache TTL for specific tools, or disable caching entirely for time-sensitive tools:
-
-```json
-{
-  "upstreams": [
-    {
-      "id": "my-server",
-      "tools": {
-        "get_current_time": {
-          "cacheTtl": 0
-        },
-        "fetch_static_docs": {
-          "cacheTtl": 3600
-        }
-      }
-    }
-  ]
-}
-```
-
-| Value | Behavior |
-|-------|----------|
-| `0` | Disable caching for this tool |
-| `undefined` | Use global `cache.ttlSeconds` |
-| `N` | Use N seconds TTL for this tool |
+**See:** [CONFIGURATION.md - Aggressive Caching](./CONFIGURATION.md#use-case-aggressive-caching-for-static-content) for practical examples
 
 ### Tool Configuration
 
-Configure individual tools within each upstream's `tools` object. Each key is the tool's original name (not namespaced):
+Configure individual tools within each upstream's `tools` object using the tool's **original name** (not namespaced):
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `hidden` | `boolean` | Hide this tool from clients (default: false) |
 | `compression` | `object` | Per-tool compression policy overrides |
 | `masking` | `object` | Per-tool PII masking policy overrides |
+| `cache` | `object` | Per-tool cache policy overrides |
 | `overwriteDescription` | `string` | Replace the tool's description |
-| `cacheTtl` | `number` | Cache TTL in seconds (0 = no caching, undefined = use global) |
+| `hideParameters` | `string[]` | Parameters to hide from client schema |
+| `parameterOverrides` | `object` | Server-side parameter injection |
 
 #### Hiding Tools
 
-Many MCP servers expose tools you may not want cluttering your context. Hide them by setting `hidden: true`:
+Set `hidden: true` to prevent tools from appearing in `tools/list`. Hidden tools are rejected if called directly.
 
-```json
-{
-  "upstreams": [
-    {
-      "id": "github",
-      "name": "GitHub",
-      "transport": "stdio",
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
-      "tools": {
-        "create_issue": { "hidden": true },
-        "delete_repository": { "hidden": true },
-        "push_files": { "hidden": true }
-      }
-    }
-  ]
-}
-```
+**See:** [CONFIGURATION.md - Hiding Unwanted Tools](./CONFIGURATION.md#use-case-hiding-unwanted-tools)
 
-Hidden tools are:
-- Not listed in `tools/list` responses
-- Rejected if called directly (returns "tool not found")
+#### Description Overrides
 
-#### Overriding Tool Descriptions
+Use `overwriteDescription` to replace a tool's description and control LLM behavior. If `goalAware` is enabled, the `_mcpcp_goal` instruction is auto-appended.
 
-You can override tool descriptions to better guide client LLM behavior without modifying prompts:
+**See:** [CONFIGURATION.md - Description Overrides Pattern](./CONFIGURATION.md#pattern-description-overrides)
 
-```json
-{
-  "upstreams": [
-    {
-      "id": "fetch",
-      "name": "Fetch",
-      "transport": "stdio",
-      "command": "uvx",
-      "args": ["mcp-server-fetch"],
-      "tools": {
-        "fetch": {
-          "overwriteDescription": "Fetches the contents of a URL. Use this only when the user has provided a specific URL in their message."
-        }
-      }
-    }
-  ]
-}
-```
+#### Parameter Hiding & Overrides
 
-The override completely replaces the upstream tool's description. If goal-aware compression is enabled, the `_mcpcp_goal` instruction is appended to your custom description.
+- **`hideParameters`**: Array of parameter names to remove from client schema
+- **`parameterOverrides`**: Object of parameter name → value mappings for server-side injection
 
-### PII Masking (EXPERIMENTAL, STILL WORK IN PROGRESS!!)
+**Rules:**
+- All hidden parameters MUST have corresponding overrides (validated at config load)
+- Overrides are applied BEFORE PII masking
+- Overrides take precedence over client-provided values
 
-Attempts to protect sensitive data from being sent to upstream MCP servers. Data is masked before forwarding to upstreams and restored before returning to the client.
+**See:** [CONFIGURATION.md - Optimizing Web Fetch](./CONFIGURATION.md#use-case-optimizing-web-fetch-tools)
 
-```
-Client sends:    email=alice@example.com
-        ↓
-    [MASK]       email=[EMAIL_1]  (upstream never sees original)
-        ↓
-    Upstream     processes masked data
-        ↓
-   [RESTORE]     email=alice@example.com
-        ↓
-Client receives: original values restored
-```
+### PII Masking (Experimental)
+
+Protects sensitive data by masking before forwarding to upstreams and restoring before returning to the client.
+
+**Flow:** Client → [MASK] → Upstream → [RESTORE] → Client
+
+#### Infrastructure Settings
+
+The top-level `masking` object configures infrastructure and acts as a **master switch**:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `enabled` | `boolean` | Enable/disable PII masking globally (default: false) |
-| `defaultPolicy` | `object` | Default masking policy for all tools |
+| `enabled` | `boolean` | **Master switch** - must be true for any masking to work (default: false) |
 | `llmConfig` | `object` | Optional LLM config for fallback detection |
 
-Per-tool masking overrides are configured in each upstream's `tools` object (see [Tool Configuration](#tool-configuration)).
+**Important:** Even if policies enable masking, it won't run unless the global master switch is enabled.
 
 #### Masking Policy
+
+**Masking policies** are configured via the **three-level hierarchy**: `defaults.masking`, `upstreams[].defaults.masking`, `upstreams[].tools[name].masking`
+
+**Resolution:** Tool-specific > Upstream defaults > Global defaults > Built-in defaults
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `enabled` | `boolean` | Enable/disable masking for this tool |
-| `piiTypes` | `string[]` | PII types to mask (see below) |
-| `llmFallback` | `boolean` | Use LLM for ambiguous cases |
-| `llmFallbackThreshold` | `"low" \| "medium" \| "high"` | Trigger LLM for patterns at or below this confidence |
+| `piiTypes` | `string[]` | PII types to mask (default: `["email", "ssn", "phone", "credit_card", "ip_address"]`) |
+| `llmFallback` | `boolean` | Use LLM for ambiguous cases (default: false) |
+| `llmFallbackThreshold` | `"low" \| "medium" \| "high"` | Trigger LLM for patterns at or below this confidence (default: "low") |
 | `customPatterns` | `object` | Custom regex patterns |
 
 #### Supported PII Types
 
-Placeholders are numbered sequentially per type (e.g., `[EMAIL_1]`, `[EMAIL_2]`) to allow proper restoration of unique values.
+Placeholders are numbered sequentially per type starting from 1 (e.g., `[EMAIL_1]`, `[EMAIL_2]`, `[EMAIL_3]`, ...) to allow proper restoration of unique values.
 
 | Type | Placeholder Format | Confidence | Example |
 |------|-------------------|------------|---------|
@@ -527,51 +394,7 @@ Placeholders are numbered sequentially per type (e.g., `[EMAIL_1]`, `[EMAIL_2]`)
 
 **Note:** Low-confidence patterns (passport, driver_license) may produce false positives. Consider using `llmFallback: true` for these.
 
-#### Example Configuration
-
-```json
-{
-  "upstreams": [
-    {
-      "id": "database",
-      "name": "Database Server",
-      "transport": "stdio",
-      "command": "npx",
-      "args": ["-y", "mcp-server-database"],
-      "tools": {
-        "query": {
-          "masking": {
-            "enabled": true,
-            "llmFallback": true,
-            "customPatterns": {
-              "employee_id": {
-                "regex": "EMP[0-9]{6}",
-                "replacement": "[EMPLOYEE_ID_REDACTED]"
-              }
-            }
-          }
-        },
-        "internal_tool": {
-          "masking": { "enabled": false }
-        }
-      }
-    }
-  ],
-  "masking": {
-    "enabled": true,
-    "defaultPolicy": {
-      "enabled": true,
-      "piiTypes": ["email", "ssn", "phone", "credit_card", "ip_address"],
-      "llmFallback": false,
-      "llmFallbackThreshold": "low"
-    },
-    "llmConfig": {
-      "baseUrl": "http://localhost:8080/v1",
-      "model": "your-model"
-    }
-  }
-}
-```
+**See:** [CONFIGURATION.md - PII Protection](./CONFIGURATION.md#use-case-pii-protection-experimental) for complete examples
 
 ## Tool Namespacing
 

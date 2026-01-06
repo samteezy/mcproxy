@@ -37,13 +37,24 @@ export const maskingPolicySchema = z.object({
   customPatterns: z.record(z.string(), customPatternDefSchema).optional(),
 });
 
+export const cachePolicySchema = z.object({
+  enabled: z.boolean().optional(),
+  ttlSeconds: z.number().int().positive().optional(),
+});
+
+export const proxyDefaultsSchema = z.object({
+  compression: compressionPolicySchema.optional(),
+  masking: maskingPolicySchema.optional(),
+  cache: cachePolicySchema.optional(),
+});
+
 export const toolConfigSchema = z
   .object({
     hidden: z.boolean().default(false),
     compression: compressionPolicySchema.optional(),
     masking: maskingPolicySchema.optional(),
+    cache: cachePolicySchema.optional(),
     overwriteDescription: z.string().optional(),
-    cacheTtl: z.number().int().min(0).optional(),
     hideParameters: z.array(z.string().min(1)).optional(),
     parameterOverrides: z.record(z.string(), z.unknown()).optional(),
   })
@@ -76,6 +87,7 @@ export const upstreamServerSchema = z
     env: z.record(z.string(), z.string()).optional(),
     url: z.string().url().optional(),
     enabled: z.boolean().default(true),
+    defaults: proxyDefaultsSchema.optional(),
     tools: z.record(z.string(), toolConfigSchema).optional(),
   })
   .refine(
@@ -91,12 +103,6 @@ export const upstreamServerSchema = z
     }
   );
 
-export const defaultPolicySchema = z.object({
-  enabled: z.boolean().default(true),
-  tokenThreshold: z.number().int().positive().default(1000),
-  maxOutputTokens: z.number().int().positive().optional(),
-});
-
 export const retryEscalationSchema = z.object({
   enabled: z.boolean().default(true),
   windowSeconds: z.number().min(1).default(60),
@@ -107,11 +113,6 @@ export const compressionSchema = z.object({
   baseUrl: z.string().url(),
   apiKey: z.string().optional(),
   model: z.string().min(1),
-  defaultPolicy: defaultPolicySchema.default({
-    enabled: true,
-    tokenThreshold: 1000,
-  }),
-  goalAware: z.boolean().default(true),
   bypassEnabled: z.boolean().default(false),
   retryEscalation: retryEscalationSchema.optional(),
 });
@@ -135,19 +136,8 @@ export const downstreamSchema = z
   );
 
 export const cacheSchema = z.object({
-  enabled: z.boolean().default(true),
-  ttlSeconds: z.number().int().positive().default(300),
   maxEntries: z.number().int().positive().default(1000),
-});
-
-export const maskingDefaultPolicySchema = z.object({
-  enabled: z.boolean().default(true),
-  piiTypes: z
-    .array(piiTypeSchema)
-    .default(["email", "ssn", "phone", "credit_card", "ip_address"]),
-  llmFallback: z.boolean().default(false),
-  llmFallbackThreshold: patternConfidenceSchema.default("low"),
-  customPatterns: z.record(z.string(), customPatternDefSchema).optional(),
+  cacheErrors: z.boolean().default(true),
 });
 
 export const maskingLlmConfigSchema = z.object({
@@ -158,23 +148,34 @@ export const maskingLlmConfigSchema = z.object({
 
 export const maskingSchema = z.object({
   enabled: z.boolean().default(false),
-  defaultPolicy: maskingDefaultPolicySchema.default({
-    enabled: true,
-    piiTypes: ["email", "ssn", "phone", "credit_card", "ip_address"],
-    llmFallback: false,
-    llmFallbackThreshold: "low",
-  }),
   llmConfig: maskingLlmConfigSchema.optional(),
 });
 
 export const configSchema = z.object({
+  version: z.literal(2).default(2),
   downstream: downstreamSchema,
   upstreams: z.array(upstreamServerSchema).min(1),
+  defaults: proxyDefaultsSchema.default({
+    compression: {
+      enabled: true,
+      tokenThreshold: 1000,
+      goalAware: true,
+    },
+    masking: {
+      enabled: false,
+      piiTypes: ["email", "ssn", "phone", "credit_card", "ip_address"],
+      llmFallback: false,
+      llmFallbackThreshold: "low" as const,
+    },
+    cache: {
+      enabled: true,
+      ttlSeconds: 300,
+    },
+  }),
   compression: compressionSchema,
   cache: cacheSchema.default({
-    enabled: true,
-    ttlSeconds: 300,
     maxEntries: 1000,
+    cacheErrors: true,
   }),
   masking: maskingSchema.optional(),
   logLevel: z.enum(["error", "warn", "info", "debug"]).default("info"),

@@ -14,22 +14,18 @@ export class MemoryCache<T> {
 
   /**
    * Update the cache configuration (used during hot reload)
+   * Note: enabled/ttlSeconds are now policy-level, resolved per-tool
    */
   updateConfig(config: CacheConfig): void {
     this.config = config;
-    if (!config.enabled) {
-      this.clear();
-    }
+    // Clear cache on config reload to ensure fresh state
+    this.clear();
   }
 
   /**
    * Get a value from the cache
    */
   get(key: string): T | undefined {
-    if (!this.config.enabled) {
-      return undefined;
-    }
-
     const entry = this.cache.get(key);
     if (!entry) {
       return undefined;
@@ -46,12 +42,9 @@ export class MemoryCache<T> {
 
   /**
    * Set a value in the cache
+   * Note: ttlSeconds is now required (resolved per-tool via policy)
    */
-  set(key: string, value: T, ttlSeconds?: number): void {
-    if (!this.config.enabled) {
-      return;
-    }
-
+  set(key: string, value: T, ttlSeconds: number): void {
     const logger = getLogger();
 
     // Enforce max entries
@@ -59,7 +52,7 @@ export class MemoryCache<T> {
       this.evictOldest();
     }
 
-    const ttl = (ttlSeconds ?? this.config.ttlSeconds) * 1000;
+    const ttl = ttlSeconds * 1000;
     this.cache.set(key, {
       value,
       timestamp: Date.now(),

@@ -1,8 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { UpstreamClient } from "./client.js";
 import { createTestUpstreamConfig } from "../test/helpers.js";
 import type {
-  ClientCapabilities,
   Tool,
   ListToolsResult,
   CallToolResult,
@@ -15,13 +14,9 @@ import type {
   TextContent,
   ImageContent,
 } from "@modelcontextprotocol/sdk/types.js";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 
 // Store last created mock instance for assertions
 let lastMockClient: any = null;
-let lastMockTransport: any = null;
 
 // Mock the entire client module with proper classes defined inside factory
 vi.mock("@modelcontextprotocol/sdk/client/index.js", () => {
@@ -51,7 +46,7 @@ vi.mock("@modelcontextprotocol/sdk/client/stdio.js", () => {
       close = vi.fn();
 
       constructor() {
-        lastMockTransport = this;
+        // Transport mock instance stored for potential future use
       }
     },
   };
@@ -64,7 +59,7 @@ vi.mock("@modelcontextprotocol/sdk/client/sse.js", () => {
       close = vi.fn();
 
       constructor() {
-        lastMockTransport = this;
+        // Transport mock instance stored for potential future use
       }
     },
   };
@@ -74,7 +69,6 @@ describe("UpstreamClient", () => {
   beforeEach(() => {
     // Don't clear mocks - each test sets up its own mocks
     lastMockClient = null;
-    lastMockTransport = null;
   });
 
   describe("constructor", () => {
@@ -88,7 +82,8 @@ describe("UpstreamClient", () => {
       const client = new UpstreamClient(config);
 
       expect(client).toBeDefined();
-      expect(client.config).toBe(config);
+      expect(client.id).toBe(config.id);
+      expect(client.name).toBe(config.name);
     });
 
     it("should create client with streamable-http config", () => {
@@ -100,7 +95,8 @@ describe("UpstreamClient", () => {
       const client = new UpstreamClient(config);
 
       expect(client).toBeDefined();
-      expect(client.config).toBe(config);
+      expect(client.id).toBe(config.id);
+      expect(client.name).toBe(config.name);
     });
 
     it("should create client with SSE config", () => {
@@ -112,7 +108,8 @@ describe("UpstreamClient", () => {
       const client = new UpstreamClient(config);
 
       expect(client).toBeDefined();
-      expect(client.config).toBe(config);
+      expect(client.id).toBe(config.id);
+      expect(client.name).toBe(config.name);
     });
   });
 
@@ -164,6 +161,45 @@ describe("UpstreamClient", () => {
       const client = new UpstreamClient(config);
 
       await expect(client.connect()).rejects.toThrow("unknown transport");
+    });
+
+    it("should throw when stdio transport missing command", async () => {
+      const config = createTestUpstreamConfig({
+        transport: "stdio",
+        command: undefined,
+      });
+
+      const client = new UpstreamClient(config);
+
+      await expect(client.connect()).rejects.toThrow(
+        "stdio transport requires 'command'"
+      );
+    });
+
+    it("should throw when streamable-http transport missing url", async () => {
+      const config = createTestUpstreamConfig({
+        transport: "streamable-http",
+        url: undefined,
+      });
+
+      const client = new UpstreamClient(config);
+
+      await expect(client.connect()).rejects.toThrow(
+        "streamable-http transport requires 'url'"
+      );
+    });
+
+    it("should throw when sse transport missing url", async () => {
+      const config = createTestUpstreamConfig({
+        transport: "sse",
+        url: undefined,
+      });
+
+      const client = new UpstreamClient(config);
+
+      await expect(client.connect()).rejects.toThrow(
+        "sse transport requires 'url'"
+      );
     });
 
     it("should handle connection errors", async () => {
@@ -360,11 +396,11 @@ describe("UpstreamClient", () => {
       lastMockClient.callTool.mockResolvedValue(toolResult);
       await client.connect();
 
-      await client.callTool("test-tool");
+      await client.callTool("test-tool", {});
 
       expect(lastMockClient.callTool).toHaveBeenCalledWith({
         name: "test-tool",
-        arguments: undefined,
+        arguments: {},
       });
     });
 
@@ -379,7 +415,7 @@ describe("UpstreamClient", () => {
       lastMockClient.callTool.mockResolvedValue(legacyResult);
       await client.connect();
 
-      const result = await client.callTool("test-tool");
+      const result = await client.callTool("test-tool", {});
 
       expect(result).toEqual({
         content: [
@@ -402,7 +438,7 @@ describe("UpstreamClient", () => {
       lastMockClient.callTool.mockResolvedValue(legacyResult);
       await client.connect();
 
-      const result = await client.callTool("test-tool");
+      const result = await client.callTool("test-tool", {});
 
       expect(result).toEqual({
         content: [
@@ -425,7 +461,7 @@ describe("UpstreamClient", () => {
       lastMockClient.callTool.mockResolvedValue(legacyResult);
       await client.connect();
 
-      const result = await client.callTool("test-tool");
+      const result = await client.callTool("test-tool", {});
 
       expect(result).toEqual({
         content: [
@@ -455,7 +491,7 @@ describe("UpstreamClient", () => {
       lastMockClient.callTool.mockResolvedValue(modernResult);
       await client.connect();
 
-      const result = await client.callTool("test-tool");
+      const result = await client.callTool("test-tool", {});
 
       expect(result).toEqual(modernResult);
     });
@@ -472,7 +508,7 @@ describe("UpstreamClient", () => {
       lastMockClient.callTool.mockResolvedValue(errorResult);
       await client.connect();
 
-      const result = await client.callTool("test-tool");
+      const result = await client.callTool("test-tool", {});
 
       expect(result.isError).toBe(true);
       expect(result.content).toEqual([
@@ -484,7 +520,7 @@ describe("UpstreamClient", () => {
       const config = createTestUpstreamConfig();
       const client = new UpstreamClient(config);
 
-      await expect(client.callTool("test-tool")).rejects.toThrow(
+      await expect(client.callTool("test-tool", {})).rejects.toThrow(
         "not connected"
       );
     });
@@ -725,14 +761,14 @@ describe("UpstreamClient", () => {
       });
       const client = new UpstreamClient(config);
 
-      expect(client.config.id).toBe("custom-id");
-      expect(client.config.name).toBe("Custom Server");
+      expect(client.id).toBe("custom-id");
+      expect(client.name).toBe("Custom Server");
 
       await client.connect();
-      expect(client.config.id).toBe("custom-id");
+      expect(client.id).toBe("custom-id");
 
       await client.disconnect();
-      expect(client.config.id).toBe("custom-id");
+      expect(client.id).toBe("custom-id");
     });
   });
 

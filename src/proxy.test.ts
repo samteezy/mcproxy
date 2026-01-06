@@ -156,7 +156,7 @@ vi.mock("express", () => {
       use: vi.fn(),
       get: vi.fn(),
       post: vi.fn(),
-      listen: vi.fn((port: number, host: string, callback: () => void) => {
+      listen: vi.fn((_port: number, _host: string, callback: () => void) => {
         callback();
         return mockHttpServer;
       }),
@@ -164,8 +164,8 @@ vi.mock("express", () => {
     return mockExpressApp;
   });
 
-  mockExpress.json = vi.fn().mockReturnValue("json-middleware");
-  mockExpress.text = vi.fn().mockReturnValue("text-middleware");
+  (mockExpress as any).json = vi.fn().mockReturnValue("json-middleware");
+  (mockExpress as any).text = vi.fn().mockReturnValue("text-middleware");
 
   return { default: mockExpress };
 });
@@ -192,7 +192,7 @@ describe("Proxy", () => {
 
     // Reset HTTP server mock
     mockHttpServer = {
-      listen: vi.fn((port: number, host: string, callback: () => void) => {
+      listen: vi.fn((_port: number, _host: string, callback: () => void) => {
         callback();
         return mockHttpServer;
       }),
@@ -268,12 +268,6 @@ describe("Proxy", () => {
       const configWithMasking = createTestConfig({
         masking: {
           enabled: true,
-          defaultPolicy: {
-            enabled: true,
-            piiTypes: ["email"],
-            llmFallback: false,
-            llmFallbackThreshold: "low",
-          },
           llmConfig: {
             baseUrl: "http://localhost:8080/v1",
             apiKey: "test-key",
@@ -744,12 +738,6 @@ describe("Proxy", () => {
       const newConfig = createTestConfig({
         masking: {
           enabled: true,
-          defaultPolicy: {
-            enabled: true,
-            piiTypes: ["email"],
-            llmFallback: false,
-            llmFallbackThreshold: "low",
-          },
           llmConfig: {
             baseUrl: "http://localhost:8080/v1",
             apiKey: "test-key",
@@ -768,12 +756,6 @@ describe("Proxy", () => {
       const configWithMasking = createTestConfig({
         masking: {
           enabled: true,
-          defaultPolicy: {
-            enabled: true,
-            piiTypes: ["email"],
-            llmFallback: false,
-            llmFallbackThreshold: "low",
-          },
           llmConfig: {
             baseUrl: "http://localhost:8080/v1",
             apiKey: "test-key",

@@ -18,7 +18,6 @@ import type {
   MaskingConfig,
   CompressionPolicy,
   MaskingPolicy,
-  TransportType,
 } from "../types.js";
 
 /**
@@ -52,7 +51,7 @@ export function createTestDownstreamConfig(
 }
 
 /**
- * Create a test compression configuration
+ * Create a test compression configuration (v0.4.0 - infrastructure only)
  */
 export function createTestCompressionConfig(
   overrides?: Partial<CompressionConfig>
@@ -61,13 +60,6 @@ export function createTestCompressionConfig(
     baseUrl: "http://localhost:8080/v1",
     apiKey: "test-key",
     model: "test-model",
-    defaultPolicy: {
-      enabled: true,
-      tokenThreshold: 1000,
-      maxOutputTokens: 500,
-      goalAware: true,
-    },
-    goalAware: true,
     bypassEnabled: false,
     retryEscalation: {
       enabled: true,
@@ -79,12 +71,10 @@ export function createTestCompressionConfig(
 }
 
 /**
- * Create a test cache configuration
+ * Create a test cache configuration (v0.4.0 - infrastructure only)
  */
 export function createTestCacheConfig(overrides?: Partial<CacheConfig>): CacheConfig {
   return {
-    enabled: true,
-    ttlSeconds: 60,
     maxEntries: 100,
     cacheErrors: true,
     ...overrides,
@@ -92,17 +82,11 @@ export function createTestCacheConfig(overrides?: Partial<CacheConfig>): CacheCo
 }
 
 /**
- * Create a test masking configuration
+ * Create a test masking configuration (v0.4.0 - infrastructure only)
  */
 export function createTestMaskingConfig(overrides?: Partial<MaskingConfig>): MaskingConfig {
   return {
     enabled: true,
-    defaultPolicy: {
-      enabled: true,
-      piiTypes: ["email", "ssn", "phone"],
-      llmFallback: false,
-      llmFallbackThreshold: "low",
-    },
     llmConfig: {
       baseUrl: "http://localhost:8080/v1",
       apiKey: "test-key",
@@ -113,12 +97,31 @@ export function createTestMaskingConfig(overrides?: Partial<MaskingConfig>): Mas
 }
 
 /**
- * Create a full test MCPCP configuration
+ * Create a full test MCPCP configuration (v0.4.0)
  */
 export function createTestConfig(overrides?: Partial<MCPCPConfig>): MCPCPConfig {
   return {
+    version: 2,
     downstream: createTestDownstreamConfig(overrides?.downstream),
     upstreams: overrides?.upstreams || [createTestUpstreamConfig()],
+    defaults: overrides?.defaults || {
+      compression: {
+        enabled: true,
+        tokenThreshold: 1000,
+        maxOutputTokens: 500,
+        goalAware: true,
+      },
+      masking: {
+        enabled: false,
+        piiTypes: ["email", "ssn", "phone"],
+        llmFallback: false,
+        llmFallbackThreshold: "low",
+      },
+      cache: {
+        enabled: true,
+        ttlSeconds: 60,
+      },
+    },
     compression: createTestCompressionConfig(overrides?.compression),
     cache: createTestCacheConfig(overrides?.cache),
     logLevel: "error",

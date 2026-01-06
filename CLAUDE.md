@@ -141,3 +141,5 @@ The `_mcpcp_goal` field is automatically injected into all tool schemas when `go
 - GH issues should be a main source of truth for enhancements, bugs, etc. 
 - Always attempt to update existing issues if we're working on one, so progress isn't lost.
 - Whenever reviewing a GH issue, merge request, etc - always attempt to pull all related comments, too.
+- Run `npm typecheck` and `npm run build` often in your development process.
+- Run `npm run test:coverage` before making any commits. If any tests fail, this must be immediately addressed with the user.

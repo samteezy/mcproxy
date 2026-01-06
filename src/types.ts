@@ -38,7 +38,23 @@ export interface CustomPatternDef {
 }
 
 /**
- * Policy settings for PII masking (can be global default or per-tool)
+ * Policy settings for compression (can be global default, per-upstream, or per-tool)
+ */
+export interface CompressionPolicy {
+  /** Whether compression is enabled */
+  enabled?: boolean;
+  /** Token threshold to trigger compression */
+  tokenThreshold?: number;
+  /** Maximum tokens for compressed output */
+  maxOutputTokens?: number;
+  /** Whether to add _mcpcp_goal field for context-aware compression */
+  goalAware?: boolean;
+  /** Custom instructions to guide the LLM during compression */
+  customInstructions?: string;
+}
+
+/**
+ * Policy settings for PII masking (can be global default, per-upstream, or per-tool)
  */
 export interface MaskingPolicy {
   /** Whether masking is enabled */
@@ -54,7 +70,17 @@ export interface MaskingPolicy {
 }
 
 /**
- * Resolved policy for a specific tool (all fields guaranteed)
+ * Policy settings for caching (can be global default, per-upstream, or per-tool)
+ */
+export interface CachePolicy {
+  /** Whether caching is enabled */
+  enabled?: boolean;
+  /** Cache TTL in seconds */
+  ttlSeconds?: number;
+}
+
+/**
+ * Resolved masking policy for a specific tool (all fields guaranteed)
  */
 export interface ResolvedMaskingPolicy {
   enabled: boolean;
@@ -62,6 +88,26 @@ export interface ResolvedMaskingPolicy {
   llmFallback: boolean;
   llmFallbackThreshold: PatternConfidence;
   customPatterns: Record<string, CustomPatternDef>;
+}
+
+/**
+ * Resolved cache policy for a specific tool (all fields guaranteed)
+ */
+export interface ResolvedCachePolicy {
+  enabled: boolean;
+  ttlSeconds: number;
+}
+
+/**
+ * Container for all proxy behavior defaults
+ */
+export interface ProxyDefaults {
+  /** Compression policy defaults */
+  compression?: CompressionPolicy;
+  /** Masking policy defaults */
+  masking?: MaskingPolicy;
+  /** Cache policy defaults */
+  cache?: CachePolicy;
 }
 
 /**
@@ -77,13 +123,11 @@ export interface MaskingLLMConfig {
 }
 
 /**
- * Configuration for PII masking
+ * Configuration for PII masking (infrastructure only)
  */
 export interface MaskingConfig {
-  /** Whether masking is enabled globally */
+  /** Whether masking is enabled globally (master switch) */
   enabled: boolean;
-  /** Default policy applied to all tools */
-  defaultPolicy: MaskingPolicy & { enabled: boolean };
   /** LLM config for fallback detection (optional) */
   llmConfig?: MaskingLLMConfig;
 }
@@ -122,14 +166,14 @@ export interface MaskingResult {
 export interface ToolConfig {
   /** Hide this tool from clients */
   hidden?: boolean;
-  /** Compression settings (overrides global defaultPolicy) */
+  /** Compression policy (overrides upstream and global defaults) */
   compression?: CompressionPolicy;
-  /** Masking settings (overrides global defaultPolicy) */
+  /** Masking policy (overrides upstream and global defaults) */
   masking?: MaskingPolicy;
+  /** Cache policy (overrides upstream and global defaults) */
+  cache?: CachePolicy;
   /** Override the tool description exposed to clients */
   overwriteDescription?: string;
-  /** Cache TTL in seconds for this tool (0 = no caching, undefined = use global) */
-  cacheTtl?: number;
   /** Parameter names to hide from client schema */
   hideParameters?: string[];
   /** Parameter values to inject server-side before forwarding to upstream */
@@ -156,6 +200,8 @@ export interface UpstreamServerConfig {
   url?: string;
   /** Optional: disable this server */
   enabled?: boolean;
+  /** Default policies for all tools from this upstream */
+  defaults?: ProxyDefaults;
   /** Tool-specific configs keyed by original tool name */
   tools?: Record<string, ToolConfig>;
 }
@@ -173,23 +219,7 @@ export interface RetryEscalationConfig {
 }
 
 /**
- * Policy settings for compression (can be global default or per-tool)
- */
-export interface CompressionPolicy {
-  /** Whether compression is enabled */
-  enabled?: boolean;
-  /** Token threshold to trigger compression */
-  tokenThreshold?: number;
-  /** Maximum tokens for compressed output */
-  maxOutputTokens?: number;
-  /** Whether to add _mcpcp_goal field for context-aware compression */
-  goalAware?: boolean;
-  /** Custom instructions to guide the LLM during compression */
-  customInstructions?: string;
-}
-
-/**
- * Configuration for the compression model
+ * Configuration for the compression model (infrastructure only)
  */
 export interface CompressionConfig {
   /** Base URL for OpenAI-compatible API */
@@ -198,10 +228,6 @@ export interface CompressionConfig {
   apiKey?: string;
   /** Model identifier */
   model: string;
-  /** Default policy applied to all tools */
-  defaultPolicy: CompressionPolicy & { enabled: boolean; tokenThreshold: number };
-  /** Enable goal-aware compression globally (adds _mcpcp_goal to tool schemas). Default: true */
-  goalAware?: boolean;
   /** Enable bypass field globally (adds _mcpcp_bypass to tool schemas). Default: false */
   bypassEnabled?: boolean;
   /** Configuration for retry escalation (optional) */
@@ -215,6 +241,7 @@ export interface ResolvedCompressionPolicy {
   enabled: boolean;
   tokenThreshold: number;
   maxOutputTokens?: number;
+  goalAware: boolean;
   customInstructions?: string;
   retryEscalation?: RetryEscalationConfig;
 }
@@ -233,13 +260,9 @@ export interface DownstreamConfig {
 }
 
 /**
- * Cache configuration
+ * Cache configuration (infrastructure only)
  */
 export interface CacheConfig {
-  /** Enable caching */
-  enabled: boolean;
-  /** TTL in seconds */
-  ttlSeconds: number;
   /** Maximum cache entries */
   maxEntries: number;
   /** Cache error responses (default: true) */
@@ -250,15 +273,19 @@ export interface CacheConfig {
  * Main MCPCP configuration
  */
 export interface MCPCPConfig {
+  /** Configuration version (2 = three-level hierarchy) */
+  version?: number;
   /** Downstream server configuration */
   downstream: DownstreamConfig;
   /** Upstream server configurations */
   upstreams: UpstreamServerConfig[];
-  /** Compression configuration */
+  /** Global default policies for all proxy behaviors */
+  defaults: ProxyDefaults;
+  /** Compression configuration (infrastructure only) */
   compression: CompressionConfig;
-  /** Cache configuration */
+  /** Cache configuration (infrastructure only) */
   cache: CacheConfig;
-  /** PII masking configuration */
+  /** PII masking configuration (infrastructure only) */
   masking?: MaskingConfig;
   /** Log level */
   logLevel?: "error" | "warn" | "info" | "debug";

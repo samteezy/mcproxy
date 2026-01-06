@@ -186,7 +186,7 @@ describe("Aggregator", () => {
     });
 
     it("should skip disconnected upstreams", async () => {
-      mockClient1.isConnected = false;
+      vi.spyOn(mockClient1, 'isConnected', 'get').mockReturnValue(false);
 
       const tool: Tool = {
         name: "tool1",
@@ -480,6 +480,172 @@ describe("Aggregator", () => {
       expect(result.inputSchema.required).toContain("_mcpcp_goal");
       expect(result.inputSchema.required || []).not.toContain("_mcpcp_bypass");
     });
+
+    it("should inject goal field when tool has no description", async () => {
+      const tool: Tool = {
+        name: "test",
+        description: undefined,
+        inputSchema: {
+          type: "object",
+          properties: {
+            arg1: { type: "string" },
+          },
+          required: ["arg1"],
+        },
+      };
+
+      vi.mocked(mockClient1.listTools!).mockResolvedValue([tool]);
+      vi.mocked(mockResolver.isGoalAwareEnabled).mockReturnValue(true);
+
+      const aggregator = new Aggregator({ resolver: mockResolver });
+      aggregator.registerClient(mockClient1 as UpstreamClient);
+
+      const tools = await aggregator.listTools();
+
+      expect(tools).toHaveLength(1);
+      const resultTool = tools[0];
+
+      // Check that description was set (not undefined/null)
+      expect(resultTool.description).toBeDefined();
+      expect(resultTool.description).toContain("_mcpcp_goal");
+    });
+
+    it("should inject bypass field when tool has no description", async () => {
+      const tool: Tool = {
+        name: "test",
+        description: undefined,
+        inputSchema: {
+          type: "object",
+          properties: {},
+        },
+      };
+
+      vi.mocked(mockClient1.listTools!).mockResolvedValue([tool]);
+      vi.mocked(mockResolver.isBypassEnabled).mockReturnValue(true);
+
+      const aggregator = new Aggregator({ resolver: mockResolver });
+      aggregator.registerClient(mockClient1 as UpstreamClient);
+
+      const tools = await aggregator.listTools();
+
+      expect(tools[0].description).toBeDefined();
+      expect(tools[0].description).toContain("_mcpcp_bypass");
+    });
+
+    it("should inject goal field when inputSchema.properties is undefined", async () => {
+      const tool: Tool = {
+        name: "test",
+        description: "Test tool",
+        inputSchema: {
+          type: "object",
+          // properties is missing
+        },
+      };
+
+      vi.mocked(mockClient1.listTools!).mockResolvedValue([tool]);
+      vi.mocked(mockResolver.isGoalAwareEnabled).mockReturnValue(true);
+
+      const aggregator = new Aggregator({ resolver: mockResolver });
+      aggregator.registerClient(mockClient1 as UpstreamClient);
+
+      const tools = await aggregator.listTools();
+
+      expect(tools[0].inputSchema.properties).toHaveProperty("_mcpcp_goal");
+    });
+
+    it("should inject goal field when inputSchema.required is undefined", async () => {
+      const tool: Tool = {
+        name: "test",
+        description: "Test tool",
+        inputSchema: {
+          type: "object",
+          properties: {},
+          // required is missing
+        },
+      };
+
+      vi.mocked(mockClient1.listTools!).mockResolvedValue([tool]);
+      vi.mocked(mockResolver.isGoalAwareEnabled).mockReturnValue(true);
+
+      const aggregator = new Aggregator({ resolver: mockResolver });
+      aggregator.registerClient(mockClient1 as UpstreamClient);
+
+      const tools = await aggregator.listTools();
+
+      expect(tools[0].inputSchema.required).toContain("_mcpcp_goal");
+    });
+
+    it("should inject bypass field when inputSchema.properties is undefined", async () => {
+      const tool: Tool = {
+        name: "test",
+        description: "Test tool",
+        inputSchema: {
+          type: "object",
+          // properties is missing
+        },
+      };
+
+      vi.mocked(mockClient1.listTools!).mockResolvedValue([tool]);
+      vi.mocked(mockResolver.isBypassEnabled).mockReturnValue(true);
+
+      const aggregator = new Aggregator({ resolver: mockResolver });
+      aggregator.registerClient(mockClient1 as UpstreamClient);
+
+      const tools = await aggregator.listTools();
+
+      expect(tools[0].inputSchema.properties).toHaveProperty("_mcpcp_bypass");
+    });
+
+    it("should hide parameters when inputSchema.properties is undefined", async () => {
+      const tool: Tool = {
+        name: "test",
+        description: "Test tool",
+        inputSchema: {
+          type: "object",
+          // properties is missing
+        },
+      };
+
+      vi.mocked(mockClient1.listTools!).mockResolvedValue([tool]);
+      vi.mocked(mockResolver.getHiddenParameters).mockReturnValue(["param1"]);
+      vi.mocked(mockResolver.isGoalAwareEnabled).mockReturnValue(false); // Disable goal injection
+
+      const aggregator = new Aggregator({ resolver: mockResolver });
+      aggregator.registerClient(mockClient1 as UpstreamClient);
+
+      const tools = await aggregator.listTools();
+
+      // Should not crash, properties should be empty object (no goal field)
+      expect(tools[0].inputSchema.properties).toBeDefined();
+      expect(Object.keys(tools[0].inputSchema.properties!)).toHaveLength(0);
+    });
+
+    it("should hide parameters when inputSchema.required is undefined", async () => {
+      const tool: Tool = {
+        name: "test",
+        description: "Test tool",
+        inputSchema: {
+          type: "object",
+          properties: {
+            param1: { type: "string" },
+          },
+          // required is missing
+        },
+      };
+
+      vi.mocked(mockClient1.listTools!).mockResolvedValue([tool]);
+      vi.mocked(mockResolver.getHiddenParameters).mockReturnValue(["param1"]);
+      vi.mocked(mockResolver.isGoalAwareEnabled).mockReturnValue(false); // Disable goal injection
+
+      const aggregator = new Aggregator({ resolver: mockResolver });
+      aggregator.registerClient(mockClient1 as UpstreamClient);
+
+      const tools = await aggregator.listTools();
+
+      // Should not crash, required should be empty array (no goal field since disabled)
+      expect(tools[0].inputSchema.required || []).toHaveLength(0);
+      expect(tools[0].inputSchema.properties).not.toHaveProperty("param1");
+    });
   });
 
   describe("lookup methods", () => {
@@ -573,6 +739,79 @@ describe("Aggregator", () => {
 
       const result = aggregator.findPrompt("server1__nonexistent");
       expect(result).toBeNull();
+    });
+
+    it("should return null when client not found in map", async () => {
+      const tool: Tool = {
+        name: "mytool",
+        description: "My tool",
+        inputSchema: { type: "object", properties: {} },
+      };
+
+      vi.mocked(mockClient1.listTools!).mockResolvedValue([tool]);
+
+      const aggregator = new Aggregator({ resolver: mockResolver });
+      aggregator.registerClient(mockClient1 as UpstreamClient);
+
+      await aggregator.listTools(); // Trigger refresh
+
+      // Now unregister the client
+      aggregator.unregisterClient("server1");
+
+      // Try to find the tool - should return null because client was removed
+      const result = aggregator.findTool("server1__mytool");
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("cache invalidation", () => {
+    it("should refresh cache when calling listResources if cache invalid", async () => {
+      const resource: Resource = {
+        uri: "file://doc.txt",
+        name: "doc",
+        mimeType: "text/plain",
+      };
+
+      vi.mocked(mockClient1.listResources!).mockResolvedValue([resource]);
+
+      const aggregator = new Aggregator({ resolver: mockResolver });
+      aggregator.registerClient(mockClient1 as UpstreamClient);
+
+      // First call triggers refresh
+      const resources1 = await aggregator.listResources();
+      expect(resources1).toHaveLength(1);
+      expect(vi.mocked(mockClient1.listResources!).mock.calls.length).toBe(1);
+
+      // Invalidate cache by registering another client
+      aggregator.registerClient(mockClient2 as UpstreamClient);
+
+      // Second call should trigger refresh again
+      await aggregator.listResources();
+      expect(vi.mocked(mockClient1.listResources!).mock.calls.length).toBe(2);
+    });
+
+    it("should refresh cache when calling listPrompts if cache invalid", async () => {
+      const prompt: Prompt = {
+        name: "myprompt",
+        description: "My prompt",
+      };
+
+      vi.mocked(mockClient1.listPrompts!).mockResolvedValue([prompt]);
+
+      const aggregator = new Aggregator({ resolver: mockResolver });
+      aggregator.registerClient(mockClient1 as UpstreamClient);
+
+      // First call triggers refresh
+      const prompts1 = await aggregator.listPrompts();
+      expect(prompts1).toHaveLength(1);
+      expect(vi.mocked(mockClient1.listPrompts!).mock.calls.length).toBe(1);
+
+      // Invalidate cache by registering another client
+      aggregator.registerClient(mockClient2 as UpstreamClient);
+
+      // Second call should trigger refresh again
+      await aggregator.listPrompts();
+      expect(vi.mocked(mockClient1.listPrompts!).mock.calls.length).toBe(2);
     });
   });
 

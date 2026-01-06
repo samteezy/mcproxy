@@ -44,10 +44,6 @@ describe("Masker", () => {
     // Basic config without LLM
     basicConfig = {
       enabled: true,
-      defaultPolicy: {
-        enabled: true,
-        piiTypes: ["email", "phone"],
-      },
     };
 
     masker = new Masker(basicConfig, mockResolver as ToolConfigResolver);
@@ -367,7 +363,7 @@ describe("Masker", () => {
       });
 
       const args = { text: "CA12345678" }; // Low confidence match
-      const result = await maskerWithLlm.maskToolArgs(args);
+      await maskerWithLlm.maskToolArgs(args);
 
       expect(mockGenerateText).not.toHaveBeenCalled();
     });

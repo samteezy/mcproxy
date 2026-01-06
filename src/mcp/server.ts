@@ -195,12 +195,11 @@ export class DownstreamServer {
       const goalArg = args?.[Router.GOAL_FIELD];
       const goal = typeof goalArg === "string" ? goalArg : undefined;
 
-      // Check per-tool cache TTL (0 = disabled)
-      const toolConfig = this.resolver?.getToolConfig(name);
-      const toolTtl = toolConfig?.cacheTtl;
+      // Resolve cache policy for this tool
+      const cachePolicy = this.resolver?.resolveCachePolicy(name);
 
-      // Check cache if enabled and tool allows caching
-      if (this.cache && this.cacheConfig?.enabled && toolTtl !== 0) {
+      // Check cache if enabled for this tool
+      if (this.cache && cachePolicy && cachePolicy.enabled) {
         const cacheKey = compressedResultCacheKey(name, args || {}, goal);
         const cached = this.cache.get(cacheKey);
         if (cached) {
@@ -253,13 +252,13 @@ export class DownstreamServer {
         }
       }
 
-      // Cache the compressed result if caching is enabled
-      if (this.cache && this.cacheConfig?.enabled && toolTtl !== 0) {
+      // Cache the compressed result if caching is enabled for this tool
+      if (this.cache && cachePolicy && cachePolicy.enabled) {
         // Check if we should cache errors (default: true)
-        const shouldCacheErrors = this.cacheConfig.cacheErrors !== false;
+        const shouldCacheErrors = this.cacheConfig?.cacheErrors !== false;
         if (!finalResult.isError || shouldCacheErrors) {
           const cacheKey = compressedResultCacheKey(name, args || {}, goal);
-          this.cache.set(cacheKey, finalResult, toolTtl);
+          this.cache.set(cacheKey, finalResult, cachePolicy.ttlSeconds);
           logger.debug(`Cached result: ${name}`);
         }
       }
